@@ -1,1 +1,1 @@
-from src.pyleanrepl.repl import LeanRepl
+from pyleanrepl.repl import LeanRepl
