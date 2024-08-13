@@ -78,10 +78,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--repl", "-r", type=str, default="repl", help="path to lean repl dir (which has been built with `lake build`)"
     )
-    parser.add_argument("cmd", type=str, help="input file or Lean code to run through the repl")
+    parser.add_argument("lean", type=str, help="input file or Lean code to run through the repl")
     parser.add_argument("--output", "-o", type=FileType("w"), help="output path, default is stdout", default="-")
 
     args = parser.parse_args()
     with LeanRepl(args.repl) as repl:
-        output = repl.interact(args.cmd)
-        print(output, flush=True)
+        output = repl.interact(args.lean)
+        print(json.dumps(output), flush=True, file=args.output)

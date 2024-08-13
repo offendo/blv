@@ -17,6 +17,9 @@ build-backend = "hatchling.build"
 managed = true
 dev-dependencies = []
 
+[tool.rye.scripts]
+repl = {"cmd" = "python src/pyleanrepl/repl.py"}
+
 [tool.hatch.metadata]
 allow-direct-references = true
 
