@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-from io import BytesIO
 import json
 import os
 import subprocess as sp
 import time
-from pprint import pprint
+import sys
+from io import BytesIO
 from pathlib import Path
+from pprint import pprint, pformat
 from typing import Any, Literal
 
 LEAN_REPL_PATH = Path(os.environ.get("LEAN_REPL_PATH", "~/src/pylean/repl/")).expanduser().absolute()
@@ -74,6 +75,9 @@ class LeanRepl:
 
 
 if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        raise Exception("Need at least one argument")
+    cmd = ' '.join(sys.argv[-1:])
     with LeanRepl() as repl:
-        output = repl.interact(str(Path("../../Pylean/test.lean").expanduser()))
-        pprint(output)
+        output = repl.interact(cmd)
+        print(output, flush=True)
