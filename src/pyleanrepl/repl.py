@@ -14,6 +14,10 @@ LEAN_REPL_PATH = Path(os.environ.get("LEAN_REPL_PATH", "~/src/pylean/repl/")).ex
 class LeanRepl:
     proc: sp.Popen[str]
     env_id: int
+    repl_path : str | Path
+
+    def __init__(self, repl_path: str | Path):
+        self.repl_path = repl_path
 
     def __enter__(self):
         self.open()
@@ -24,8 +28,7 @@ class LeanRepl:
 
     def open(self):
         self.proc = sp.Popen(
-            ["lake", "env", f"{LEAN_REPL_PATH}/.lake/build/bin/repl"],
-            cwd=LEAN_REPL_PATH.expanduser().parent,
+            ["lake", "env", f"{self.repl_path}/.lake/build/bin/repl"],
             stdin=sp.PIPE,
             stdout=sp.PIPE,
             stderr=sp.PIPE,
