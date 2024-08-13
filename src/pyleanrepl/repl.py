@@ -2,19 +2,15 @@
 import json
 import os
 import subprocess as sp
-import time
-import sys
-from io import BytesIO
+from argparse import ArgumentParser, FileType
 from pathlib import Path
-from pprint import pprint, pformat
 from typing import Any, Literal
 
-LEAN_REPL_PATH = Path(os.environ.get("LEAN_REPL_PATH", "~/src/pylean/repl/")).expanduser().absolute()
 
 class LeanRepl:
     proc: sp.Popen[str]
     env_id: int
-    repl_path : str | Path
+    repl_path: str | Path
 
     def __init__(self, repl_path: str | Path):
         self.repl_path = repl_path
@@ -77,10 +73,15 @@ class LeanRepl:
         return "".join(out).strip()
 
 
-if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        raise Exception("Need at least one argument")
-    cmd = ' '.join(sys.argv[-1:])
-    with LeanRepl() as repl:
-        output = repl.interact(cmd)
+if __name__ == "__main__":
+    parser = ArgumentParser("pyleanrepl")
+    parser.add_argument(
+        "--repl", "-r", type=str, default="repl", help="path to lean repl dir (which has been built with `lake build`)"
+    )
+    parser.add_argument("cmd", type=str, help="input file or Lean code to run through the repl")
+    parser.add_argument("--output", "-o", type=FileType("w"), help="output path, default is stdout", default="-")
+
+    args = parser.parse_args()
+    with LeanRepl(args.repl) as repl:
+        output = repl.interact(args.cmd)
         print(output, flush=True)
