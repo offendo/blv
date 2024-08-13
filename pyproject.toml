@@ -1,5 +1,5 @@
 [project]
-name = "pylean"
+name = "pyleanrepl"
 version = "0.1.0"
 description = "Simple wrapper for LeanREPL"
 authors = [
