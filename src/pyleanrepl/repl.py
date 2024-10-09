@@ -13,9 +13,10 @@ class LeanRepl:
     repl_path: str | Path
     project_path: str | Path
 
-    def __init__(self, repl_path: str | Path, project_path : str | Path):
+    def __init__(self, repl_path: str | Path, project_path : str | Path, backport: bool = True):
         self.repl_path = repl_path
         self.project_path = project_path
+        self.backport = backport
 
     def __enter__(self):
         self.open()
@@ -25,8 +26,12 @@ class LeanRepl:
         self.close()
 
     def open(self):
+        if self.backport:
+            path = f"{self.repl_path}/build/bin/repl"
+        else:
+            path = f"{self.repl_path}/.lake/build/bin/repl"
         self.proc = sp.Popen(
-            ["lake", "env", f"{self.repl_path}/.lake/build/bin/repl"],
+            ["lake", "env", path],
             cwd=self.project_path,
             stdin=sp.PIPE,
             stdout=sp.PIPE,
