@@ -104,11 +104,9 @@ if __name__ == "__main__":
 
             # simulate some processing of queue items and update progress
             time.sleep(0.1)
-
-    # Waiting for completion
-    for th in threads:
-        th.join()
-        logging.info(f"{th.name} joined")
+        processed_items = len(theorems) - current_queue_size  # type:ignore
+        pbar.n = processed_items  # directly set progress
+        pbar.refresh()  # force refresh
 
     responses = redis.lpop("verified", len(theorems))
     df["responses"] = responses
