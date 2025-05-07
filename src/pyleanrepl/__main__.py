@@ -9,12 +9,13 @@ if __name__ == "__main__":
         "--repl", "-r", type=str, default="repl", help="path to lean repl dir (which has been built with `lake build`)"
     )
     parser.add_argument(
-        "--project", "-p", type=str, default=".", help="path to lean repl dir (which has been built with `lake build`)"
+        "--project", "-p", type=str, default=".", help="path to lean project dir (which has been built with `lake build`)"
     )
     parser.add_argument("lean", type=str, help="input file or Lean code to run through the repl")
     parser.add_argument("--output", "-o", type=FileType("w"), help="output path, default is stdout", default="-")
+    parser.add_argument("--backport", "-b", action='store_true', help="whether the repl is backported or not")
 
     args = parser.parse_args()
-    with LeanRepl(args.repl, args.project) as repl:
+    with LeanRepl(args.repl, args.project, backport=args.backport) as repl:
         output = repl.interact(args.lean)
         print(json.dumps(output), flush=True, file=args.output)

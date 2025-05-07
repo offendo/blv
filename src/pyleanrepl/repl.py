@@ -13,7 +13,7 @@ class LeanRepl:
     repl_path: str | Path
     project_path: str | Path
 
-    def __init__(self, repl_path: str | Path, project_path : str | Path, backport: bool = True):
+    def __init__(self, repl_path: str | Path, project_path : str | Path, backport: bool = False):
         self.repl_path = repl_path
         self.project_path = project_path
         self.backport = backport
@@ -70,7 +70,7 @@ class LeanRepl:
         stdio = self.proc.stdout if stream == "stdout" else self.proc.stderr
         assert stdio is not None
 
-        newlines = ["\n", "\n\r", "\r"]
+        newlines = ["\n", "\n\r", "\r", ""]
         out = []
         last = stdio.read(1)
         while True:
@@ -79,20 +79,3 @@ class LeanRepl:
                 break
             last = stdio.read(1)
         return "".join(out).strip()
-
-
-if __name__ == "__main__":
-    parser = ArgumentParser("pyleanrepl")
-    parser.add_argument(
-        "--repl", "-r", type=str, default="repl", help="path to lean repl dir (which has been built with `lake build`)"
-    )
-    parser.add_argument(
-        "--project", "-p", type=str, default=".", help="path to lean repl dir (which has been built with `lake build`)"
-    )
-    parser.add_argument("lean", type=str, help="input file or Lean code to run through the repl")
-    parser.add_argument("--output", "-o", type=FileType("w"), help="output path, default is stdout", default="-")
-
-    args = parser.parse_args()
-    with LeanRepl(args.repl, args.project) as repl:
-        output = repl.interact(args.lean)
-        print(json.dumps(output), flush=True, file=args.output)

@@ -5,7 +5,11 @@ description = "Simple wrapper for LeanREPL"
 authors = [
     { name = "Nilay Patel", email = "nilaypatel2@gmail.com" }
 ]
-dependencies = []
+dependencies = [
+    "rq>=2.3.2",
+    "redis[hiredis]>=6.0.0",
+    "more-itertools>=10.7.0",
+]
 readme = "README.md"
 requires-python = ">= 3.8"
 

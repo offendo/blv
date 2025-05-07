@@ -7,5 +7,17 @@
 #   all-features: false
 #   with-sources: false
 #   generate-hashes: false
+#   universal: false
 
 -e file:.
+click==8.1.8
+    # via rq
+hiredis==3.1.0
+    # via redis
+more-itertools==10.7.0
+    # via pyleanrepl
+redis==6.0.0
+    # via pyleanrepl
+    # via rq
+rq==2.3.2
+    # via pyleanrepl
