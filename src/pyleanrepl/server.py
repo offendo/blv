@@ -28,9 +28,8 @@ class VerifierWorker:
         host: str = "localhost",
         port: int = 6379,
         db: int = 0,
-        protocol: int = 3,
     ):
-        self.redis = redis.Redis(host=host, port=port, db=db, protocol=protocol)
+        self.redis = redis.Redis(host=host, port=port, db=db)
         self.repl = LeanRepl(repl_path=repl_path, project_path=project_path, backport=backport)
         self.imports = "\n".join(imports or []) or "import Mathlib"
 
@@ -69,7 +68,7 @@ if __name__ == "__main__":
     REPL_PATH = os.path.expanduser("~/src/repl/")
     PROJECT_PATH = os.path.expanduser("~/src/repl/")
     BACKPORT = False
-    N_WORKERS = 2
+    N_WORKERS = 64
 
     DATA_PATH = os.path.expanduser("~/src/autoformalization/formalize/herald_iter3_positives_output.json")
     OUTPUT_PATH = os.path.expanduser("~/src/autoformalization/formalize/herald_iter3_positives_output_verified.json")
@@ -85,18 +84,18 @@ if __name__ == "__main__":
         threads.append(thread)
     logging.info("Launched threads")
 
-    redis = redis.Redis(host="localhost", port=6379, db=0, protocol=3)
+    client = redis.Redis(host="localhost", port=6379, db=0)
 
     df = pd.read_json(DATA_PATH, lines=True)
     theorems = df.formal_statement.str.replace("import Mathlib", "")
-    redis.rpush("unverified", *[json.dumps({"theorem": thm, "id": idx}) for idx, thm in enumerate(theorems)])
+    client.rpush("unverified", *[json.dumps({"theorem": thm, "id": idx}) for idx, thm in enumerate(theorems)])
 
     # Stop signal - very crude, should fix
     for _ in range(N_WORKERS):
-        redis.rpush("stop", "stop")
+        client.rpush("stop", "stop")
 
     with tqdm(total=len(theorems), desc="Processing") as pbar:
-        while (current_queue_size := redis.llen("unverified")) > 0:  # type:ignore
+        while (current_queue_size := client.llen("unverified")) > 0:  # type:ignore
             # check queue size and update progress
             processed_items = len(theorems) - current_queue_size  # type:ignore
             pbar.n = processed_items  # directly set progress
@@ -108,7 +107,7 @@ if __name__ == "__main__":
         pbar.n = processed_items  # directly set progress
         pbar.refresh()  # force refresh
 
-    responses = redis.lpop("verified", len(theorems))
+    responses = client.lpop("verified", count=len(theorems))
     df["responses"] = responses
     df.to_json(OUTPUT_PATH + ".tmp")
     df["responses"] = [json.loads(resp) for resp in responses]  # type:ignore
