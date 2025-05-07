@@ -9,6 +9,8 @@ dependencies = [
     "rq>=2.3.2",
     "redis[hiredis]>=6.0.0",
     "more-itertools>=10.7.0",
+    "pandas>=2.2.3",
+    "tqdm>=4.67.1",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"
@@ -19,7 +21,10 @@ build-backend = "hatchling.build"
 
 [tool.rye]
 managed = true
-dev-dependencies = []
+dev-dependencies = [
+    "isort>=6.0.1",
+    "black>=25.1.0",
+]
 
 [tool.rye.scripts]
 repl = {"cmd" = "python src/pyleanrepl/repl.py"}

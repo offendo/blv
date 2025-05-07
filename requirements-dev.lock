@@ -10,14 +10,39 @@
 #   universal: false
 
 -e file:.
+black==25.1.0
 click==8.1.8
+    # via black
     # via rq
 hiredis==3.1.0
     # via redis
+isort==6.0.1
 more-itertools==10.7.0
     # via pyleanrepl
+mypy-extensions==1.1.0
+    # via black
+numpy==2.2.5
+    # via pandas
+packaging==25.0
+    # via black
+pandas==2.2.3
+    # via pyleanrepl
+pathspec==0.12.1
+    # via black
+platformdirs==4.3.7
+    # via black
+python-dateutil==2.9.0.post0
+    # via pandas
+pytz==2025.2
+    # via pandas
 redis==6.0.0
     # via pyleanrepl
     # via rq
 rq==2.3.2
     # via pyleanrepl
+six==1.17.0
+    # via python-dateutil
+tqdm==4.67.1
+    # via pyleanrepl
+tzdata==2025.2
+    # via pandas
