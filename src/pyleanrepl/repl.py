@@ -25,7 +25,6 @@ class LeanRepl:
         self.repl_path = repl_path
         self.project_path = project_path
         self.backport = backport
-        signal.signal(signal.SIGALRM, timeout_handler)
 
     def __enter__(self):
         self.open()
@@ -39,18 +38,14 @@ class LeanRepl:
             path = f"{self.repl_path}/build/bin/repl"
         else:
             path = f"{self.repl_path}/.lake/build/bin/repl"
-        self.stdin = tempfile.TemporaryFile("w+b", buffering=1)
-        self.stdout = tempfile.TemporaryFile("r+b", buffering=1)
-        self.stderr = tempfile.TemporaryFile("r+b", buffering=1)
         self.proc = sp.Popen(
             ["lake", "env", path],
             cwd=self.project_path,
-            stdin=self.stdin,
-            stdout=self.stdout,
-            stderr=self.stderr,
-            bufsize=1,
+            stdin=sp.PIPE,
+            stdout=sp.PIPE,
+            stderr=sp.PIPE,
+            bufsize=0,
             universal_newlines=True,
-            text=True,
         )
         return self.proc.pid
 
@@ -71,8 +66,13 @@ class LeanRepl:
 
         # Send the message
         assert self.proc.stdin is not None
-        self.stdin.write((json.dumps(cmd) + "\n\n").encode())
+        assert self.proc.stdout is not None
+
+        self.proc.stdin.write(json.dumps(cmd) + "\n\n")
+        self.proc.stdin.flush()
+
         stdout = self._read_stream("stdout")
+        self.proc.stdout.flush()
 
         # Wait for the response
         out = json.loads(stdout) if stdout else {}

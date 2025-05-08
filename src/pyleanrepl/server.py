@@ -5,6 +5,9 @@ import os
 import subprocess as sp
 import threading as t
 import time
+import signal
+import argparse
+import uuid
 from tqdm import tqdm
 from pathlib import Path
 from typing import Any, Literal
@@ -16,7 +19,6 @@ from more_itertools import divide
 from pyleanrepl.repl import LeanRepl
 
 logging.basicConfig(level=logging.INFO)
-
 
 class VerifierWorker:
     def __init__(
@@ -45,71 +47,46 @@ class VerifierWorker:
         tok = time.time()
         logging.info(f"imported Mathlib in {tok-tik:0.2f}s")
 
-        while message := self.redis.blpop(["unverified", "stop"], timeout=10):
-            queue, data = message  # type:ignore
-            if queue == b"stop":
+        
+        self.key = f"buffer_{str(uuid.uuid4())}"
+        while message := self.redis.brpoplpush("unverified", self.key, timeout=0):
+            if message == b"stop":
                 self.close()
                 break
 
             try:
-                thm = json.loads(data)
+                thm = json.loads(message) # type:ignore
             except json.JSONDecodeError as e:
-                logging.warning(f"Got malformed JSON: {data}.")
+                logging.warning(f"Got malformed JSON: {message}.")
                 continue
 
-            lean_response = self.repl.interact(thm["theorem"], timeout=10)
+            lean_response = self.repl.interact(thm["theorem"], environment=0)
             self.redis.lpush("verified", json.dumps({"id": thm["id"], "response": lean_response}))
+
+            # now pop it off the buffer
+            self.redis.lpop(self.key)
 
 
 if __name__ == "__main__":
-    REPL_PATH = os.path.expanduser("~/src/repl/")
-    PROJECT_PATH = os.path.expanduser("~/src/repl/")
-    BACKPORT = False
-    N_WORKERS = 20
+    parser = argparse.ArgumentParser('client')
 
-    DATA_PATH = os.path.expanduser("~/src/formalize/herald_iter3_positives_output.json")
-    OUTPUT_PATH = os.path.expanduser("~/src/formalize/herald_iter3_positives_output_verified.json")
+    # data
+    parser.add_argument("--repl", type=str, required=True)
+    parser.add_argument("--backport", action="store_true")
 
-    threads: list[t.Thread] = []
-    for _ in range(N_WORKERS):
-        thread = t.Thread(
-            target=VerifierWorker(repl_path=REPL_PATH, project_path=PROJECT_PATH, backport=BACKPORT).listen,
-            daemon=True,
-        )
+    # redis stuff
+    parser.add_argument("--host", default="localhost")
+    parser.add_argument("--port", default=6379)
+    parser.add_argument("--db", default=0)
 
-        thread.start()
-        threads.append(thread)
-    logging.info("Launched threads")
+    args = parser.parse_args()
 
-    client = redis.Redis(host="localhost", port=6379, db=0)
-
-    df = pd.read_json(DATA_PATH)
-    theorems = df.formal_statement.str.replace("import Mathlib", "")
-    client.rpush("unverified", *[json.dumps({"theorem": thm, "id": idx}) for idx, thm in enumerate(theorems)])
-
-    # Stop signal - very crude, should fix
-    for _ in range(N_WORKERS):
-        client.rpush("stop", "stop")
-
-    with tqdm(total=len(theorems), desc="Processing") as pbar:
-        while (current_queue_size := client.llen("verified")) < len(theorems):  # type:ignore
-            # check queue size and update progress
-            pbar.n = current_queue_size  # directly set progress
-            pbar.refresh()  # force refresh
-
-            # simulate some processing of queue items and update progress
-            time.sleep(0.1)
-        pbar.n = current_queue_size  # directly set progress
-        pbar.refresh()  # force refresh
-
-    responses = client.lpop("verified", count=len(theorems))
-
-    df["responses"] = responses
-    df.to_json(OUTPUT_PATH + ".tmp")
-
-    df["responses"] = [json.loads(resp) for resp in responses]  # type:ignore
-    df.to_json(OUTPUT_PATH + ".tmp")
-
-    # verified if we got a positive response and there are no errors
-    df["verified"] = df["responses"].apply(lambda resp: len(resp) > 0 and all([ms["severity"] != "error" for ms in resp['messages']]))
-    df.to_json(OUTPUT_PATH)
+    worker = VerifierWorker(
+        repl_path=args.repl,
+        project_path=args.repl,
+        backport=args.backport,
+        host=args.host,
+        port=args.port,
+        db=args.db,
+    )
+    worker.listen()
