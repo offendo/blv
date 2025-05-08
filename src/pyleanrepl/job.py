@@ -64,10 +64,11 @@ if __name__ == "__main__":
 
     with tqdm(total=len(theorems), desc="Processing") as pbar:
         while (queue.finished_job_registry.count + queue.failed_job_registry.count) < len(theorems):  # type:ignore
-            pbar.n = queue.finished_job_registry.count
+            pbar.n = queue.finished_job_registry.count + queue.failed_job_registry.count
+            pbar.set_postfix({"failed jobs": queue.failed_job_registry.count})
             pbar.refresh()
             time.sleep(0.1)
-        pbar.n = queue.finished_job_registry.count
+        pbar.n = queue.finished_job_registry.count + queue.failed_job_registry.count
         pbar.refresh()
 
     responses = [j.return_value() or {"theorem_id": j.kwargs["theorem_id"]} for j in jobs]
