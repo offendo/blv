@@ -36,9 +36,6 @@ class VerifierWorker:
     def close(self):
         self.repl.close()
 
-    def interact(self, theorem: str):
-        return self.repl.interact(theorem, environment=0)
-
     def listen(self):
         # Launch the repl instance
         self.pid = self.repl.open()
@@ -48,7 +45,7 @@ class VerifierWorker:
         tok = time.time()
         logging.info(f"imported Mathlib in {tok-tik:0.2f}s")
 
-        while message := self.redis.blpop(["unverified"], timeout=0):
+        while message := self.redis.blpop(["unverified", "stop"], timeout=10):
             queue, data = message  # type:ignore
             if queue == b"stop":
                 self.close()
@@ -60,7 +57,7 @@ class VerifierWorker:
                 logging.warning(f"Got malformed JSON: {data}.")
                 continue
 
-            lean_response = self.interact(thm["theorem"])
+            lean_response = self.repl.interact(thm["theorem"], timeout=10)
             self.redis.lpush("verified", json.dumps({"id": thm["id"], "response": lean_response}))
 
 
@@ -68,10 +65,10 @@ if __name__ == "__main__":
     REPL_PATH = os.path.expanduser("~/src/repl/")
     PROJECT_PATH = os.path.expanduser("~/src/repl/")
     BACKPORT = False
-    N_WORKERS = 64
+    N_WORKERS = 20
 
-    DATA_PATH = os.path.expanduser("~/src/autoformalization/formalize/herald_iter3_positives_output.json")
-    OUTPUT_PATH = os.path.expanduser("~/src/autoformalization/formalize/herald_iter3_positives_output_verified.json")
+    DATA_PATH = os.path.expanduser("~/src/formalize/herald_iter3_positives_output.json")
+    OUTPUT_PATH = os.path.expanduser("~/src/formalize/herald_iter3_positives_output_verified.json")
 
     threads: list[t.Thread] = []
     for _ in range(N_WORKERS):
@@ -86,7 +83,7 @@ if __name__ == "__main__":
 
     client = redis.Redis(host="localhost", port=6379, db=0)
 
-    df = pd.read_json(DATA_PATH, lines=True)
+    df = pd.read_json(DATA_PATH)
     theorems = df.formal_statement.str.replace("import Mathlib", "")
     client.rpush("unverified", *[json.dumps({"theorem": thm, "id": idx}) for idx, thm in enumerate(theorems)])
 
@@ -95,22 +92,24 @@ if __name__ == "__main__":
         client.rpush("stop", "stop")
 
     with tqdm(total=len(theorems), desc="Processing") as pbar:
-        while (current_queue_size := client.llen("unverified")) > 0:  # type:ignore
+        while (current_queue_size := client.llen("verified")) < len(theorems):  # type:ignore
             # check queue size and update progress
-            processed_items = len(theorems) - current_queue_size  # type:ignore
-            pbar.n = processed_items  # directly set progress
+            pbar.n = current_queue_size  # directly set progress
             pbar.refresh()  # force refresh
 
             # simulate some processing of queue items and update progress
             time.sleep(0.1)
-        processed_items = len(theorems) - current_queue_size  # type:ignore
-        pbar.n = processed_items  # directly set progress
+        pbar.n = current_queue_size  # directly set progress
         pbar.refresh()  # force refresh
 
     responses = client.lpop("verified", count=len(theorems))
+
     df["responses"] = responses
     df.to_json(OUTPUT_PATH + ".tmp")
+
     df["responses"] = [json.loads(resp) for resp in responses]  # type:ignore
     df.to_json(OUTPUT_PATH + ".tmp")
-    df["verified"] = df["responses"].apply(lambda msgs: all([ms["severity"] != "error" for ms in msgs]))
+
+    # verified if we got a positive response and there are no errors
+    df["verified"] = df["responses"].apply(lambda resp: len(resp) > 0 and all([ms["severity"] != "error" for ms in resp['messages']]))
     df.to_json(OUTPUT_PATH)

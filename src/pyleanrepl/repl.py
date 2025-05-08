@@ -2,10 +2,19 @@
 import json
 import os
 import subprocess as sp
+import time
+import threading
+import signal
+import logging
 from argparse import ArgumentParser, FileType
 from pathlib import Path
 from typing import Any, Literal
 
+class TimeoutException(Exception):
+    ...
+
+def timeout_handler(signum, frame):
+    raise TimeoutException("ran out of time")
 
 class LeanRepl:
     proc: sp.Popen[str]
@@ -17,6 +26,7 @@ class LeanRepl:
         self.repl_path = repl_path
         self.project_path = project_path
         self.backport = backport
+        signal.signal(signal.SIGALRM, timeout_handler)
 
     def __enter__(self):
         self.open()
@@ -38,6 +48,7 @@ class LeanRepl:
             stderr=sp.PIPE,
             bufsize=1,
             universal_newlines=True,
+            text=True,
         )
         return self.proc.pid
 
@@ -46,7 +57,7 @@ class LeanRepl:
             self.proc.stdin.close()
         return self.proc.wait()
 
-    def interact(self, command: str, environment: int | None = None) -> dict:
+    def interact(self, command: str, environment: int | None = None, timeout: int = 0) -> dict:
         cmd: dict[str, Any] = {"allTactics": True}
         if os.path.exists(command):
             cmd["path"] = command
@@ -57,16 +68,45 @@ class LeanRepl:
             cmd["env"] = environment
 
         # Send the message
-        assert self.proc.stdin is not None
-        self.proc.stdin.write(json.dumps(cmd) + "\n\n")
-        stdout = self._read_stream("stdout")
+        try:
+            assert self.proc.stdin is not None
+            self.proc.stdin.write(json.dumps(cmd) + "\n\n")
+            signal.alarm(timeout)
+            stdout = self._read_stream_2("stdout")
+            signal.alarm(0)
+        except TimeoutException as e:
+            print(e)
+            stdout = None
+        except BrokenPipeError as e:
+            # Re-up the process
+            logging.warning("Broken pipe; gonna re-up")
+            self.close()
+            self.open()
+            cmd = {"allTactics": True, "cmd": "import Mathlib"}
+            self.proc.stdin.write(json.dumps(cmd) + '\n\n')
+            logging.info("Done!")
+            return {}
+
 
         # Wait for the response
         out = json.loads(stdout) if stdout else {}
         self.env_id = out.get("env", None)
         return out
 
-    def _read_stream(self, stream: Literal["stdout", "stderr"]) -> str:
+    def _read_stream(self, stream: Literal["stdout", "stderr"]) -> str | None:
+        stdio = self.proc.stdout if stream == "stdout" else self.proc.stderr
+        assert stdio is not None
+
+        newlines = ["\n", "\n\r", "\r", ""]
+        out = []
+        while True:
+            line = stdio.readline()
+            if (not line.strip() and len(out) >= 1):
+                break
+            out.extend(line)
+        return "".join(out).strip()
+
+    def _read_stream_2(self, stream: Literal["stdout", "stderr"]) -> str:
         stdio = self.proc.stdout if stream == "stdout" else self.proc.stderr
         assert stdio is not None
 
