@@ -2,19 +2,18 @@
 import json
 import os
 import subprocess as sp
-import time
-import threading
-import signal
-import logging
+import tempfile
 from argparse import ArgumentParser, FileType
 from pathlib import Path
 from typing import Any, Literal
 
-class TimeoutException(Exception):
-    ...
+
+class TimeoutException(Exception): ...
+
 
 def timeout_handler(signum, frame):
     raise TimeoutException("ran out of time")
+
 
 class LeanRepl:
     proc: sp.Popen[str]
@@ -22,7 +21,7 @@ class LeanRepl:
     repl_path: str | Path
     project_path: str | Path
 
-    def __init__(self, repl_path: str | Path, project_path : str | Path, backport: bool = False):
+    def __init__(self, repl_path: str | Path, project_path: str | Path, backport: bool = False):
         self.repl_path = repl_path
         self.project_path = project_path
         self.backport = backport
@@ -40,12 +39,15 @@ class LeanRepl:
             path = f"{self.repl_path}/build/bin/repl"
         else:
             path = f"{self.repl_path}/.lake/build/bin/repl"
+        self.stdin = tempfile.TemporaryFile("w+b", buffering=1)
+        self.stdout = tempfile.TemporaryFile("r+b", buffering=1)
+        self.stderr = tempfile.TemporaryFile("r+b", buffering=1)
         self.proc = sp.Popen(
             ["lake", "env", path],
             cwd=self.project_path,
-            stdin=sp.PIPE,
-            stdout=sp.PIPE,
-            stderr=sp.PIPE,
+            stdin=self.stdin,
+            stdout=self.stdout,
+            stderr=self.stderr,
             bufsize=1,
             universal_newlines=True,
             text=True,
@@ -68,25 +70,9 @@ class LeanRepl:
             cmd["env"] = environment
 
         # Send the message
-        try:
-            assert self.proc.stdin is not None
-            self.proc.stdin.write(json.dumps(cmd) + "\n\n")
-            signal.alarm(timeout)
-            stdout = self._read_stream_2("stdout")
-            signal.alarm(0)
-        except TimeoutException as e:
-            print(e)
-            stdout = None
-        except BrokenPipeError as e:
-            # Re-up the process
-            logging.warning("Broken pipe; gonna re-up")
-            self.close()
-            self.open()
-            cmd = {"allTactics": True, "cmd": "import Mathlib"}
-            self.proc.stdin.write(json.dumps(cmd) + '\n\n')
-            logging.info("Done!")
-            return {}
-
+        assert self.proc.stdin is not None
+        self.stdin.write((json.dumps(cmd) + "\n\n").encode())
+        stdout = self._read_stream("stdout")
 
         # Wait for the response
         out = json.loads(stdout) if stdout else {}
@@ -101,7 +87,7 @@ class LeanRepl:
         out = []
         while True:
             line = stdio.readline()
-            if (not line.strip() and len(out) >= 1):
+            if not line.strip() and len(out) >= 1:
                 break
             out.extend(line)
         return "".join(out).strip()
