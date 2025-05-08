@@ -33,6 +33,12 @@ class LeanRepl:
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
+    def reset(self, imports: list[str] | None = None):
+        self.close()
+        pid = self.open()
+        self.interact("\n".join(imports or []) or "import Mathlib")
+        return pid
+
     def open(self):
         if self.backport:
             path = f"{self.repl_path}/build/bin/repl"
@@ -43,7 +49,7 @@ class LeanRepl:
             cwd=self.project_path,
             stdin=sp.PIPE,
             stdout=sp.PIPE,
-            stderr=sp.PIPE,
+            stderr=sp.STDOUT,
             bufsize=0,
             universal_newlines=True,
         )
@@ -68,6 +74,8 @@ class LeanRepl:
         assert self.proc.stdin is not None
         assert self.proc.stdout is not None
 
+        # NOTE: Need the .flush afterwards, otherwise things start breaking after 65000 bytes
+        # written, apparently due to some hidden unix buffer size.
         self.proc.stdin.write(json.dumps(cmd) + "\n\n")
         self.proc.stdin.flush()
 
@@ -83,7 +91,6 @@ class LeanRepl:
         stdio = self.proc.stdout if stream == "stdout" else self.proc.stderr
         assert stdio is not None
 
-        newlines = ["\n", "\n\r", "\r", ""]
         out = []
         while True:
             line = stdio.readline()
@@ -92,7 +99,7 @@ class LeanRepl:
             out.extend(line)
         return "".join(out).strip()
 
-    def _read_stream_2(self, stream: Literal["stdout", "stderr"]) -> str:
+    def _read_stream_char(self, stream: Literal["stdout", "stderr"]) -> str:
         stdio = self.proc.stdout if stream == "stdout" else self.proc.stderr
         assert stdio is not None
 
