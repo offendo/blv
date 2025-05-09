@@ -46,13 +46,12 @@ if __name__ == "__main__":
     df = pd.read_json(args.data)
     df = df[: args.num_samples] if args.num_samples > 0 else df
 
-    theorems = df.formal_statement.str.replace("import Mathlib", "").apply(lambda x: x.strip()[:2048])
+    theorems = df.formal_statement.str.replace("import Mathlib", "").apply(lambda x: x.strip()[:4096])
     prepared_jobs = [
         queue.prepare_data(
             "src.pyleanrepl.job.verify",
             kwargs={"theorem_id": idx, "theorem": thm},
             timeout=20,
-            retry=rq.Retry(max=3),
         )
         for idx, thm in enumerate(theorems)
     ]
@@ -80,7 +79,3 @@ if __name__ == "__main__":
         and ("messages" not in resp or not any([ms["severity"] == "error" for ms in resp["messages"]]))
     )
     df.to_json(args.output)
-
-    # clean up jobs
-    for job in jobs:
-        job.delete()
