@@ -24,6 +24,7 @@ managed = true
 dev-dependencies = [
     "isort>=6.0.1",
     "black>=25.1.0",
+    "ipython>=9.2.0",
 ]
 
 [tool.rye.scripts]

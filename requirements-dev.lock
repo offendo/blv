@@ -10,13 +10,26 @@
 #   universal: false
 
 -e file:.
+asttokens==3.0.0
+    # via stack-data
 black==25.1.0
 click==8.1.8
     # via black
     # via rq
+decorator==5.2.1
+    # via ipython
+executing==2.2.0
+    # via stack-data
 hiredis==3.1.0
     # via redis
+ipython==9.2.0
+ipython-pygments-lexers==1.1.1
+    # via ipython
 isort==6.0.1
+jedi==0.19.2
+    # via ipython
+matplotlib-inline==0.1.7
+    # via ipython
 more-itertools==10.7.0
     # via pyleanrepl
 mypy-extensions==1.1.0
@@ -27,10 +40,23 @@ packaging==25.0
     # via black
 pandas==2.2.3
     # via pyleanrepl
+parso==0.8.4
+    # via jedi
 pathspec==0.12.1
     # via black
+pexpect==4.9.0
+    # via ipython
 platformdirs==4.3.7
     # via black
+prompt-toolkit==3.0.51
+    # via ipython
+ptyprocess==0.7.0
+    # via pexpect
+pure-eval==0.2.3
+    # via stack-data
+pygments==2.19.1
+    # via ipython
+    # via ipython-pygments-lexers
 python-dateutil==2.9.0.post0
     # via pandas
 pytz==2025.2
@@ -42,7 +68,14 @@ rq==2.3.2
     # via pyleanrepl
 six==1.17.0
     # via python-dateutil
+stack-data==0.6.3
+    # via ipython
 tqdm==4.67.1
     # via pyleanrepl
+traitlets==5.14.3
+    # via ipython
+    # via matplotlib-inline
 tzdata==2025.2
     # via pandas
+wcwidth==0.2.13
+    # via prompt-toolkit
