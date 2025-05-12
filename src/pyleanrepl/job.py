@@ -46,14 +46,15 @@ if __name__ == "__main__":
     df = pd.read_json(args.data)
     df = df[: args.num_samples] if args.num_samples > 0 else df
 
+    df = df.explode(['formal_statement']).reset_index(drop=True)
     theorems = df.formal_statement.str.replace("import Mathlib", "").apply(lambda x: x.strip()[:4096])
     prepared_jobs = [
         queue.prepare_data(
             "src.pyleanrepl.job.verify",
-            kwargs={"theorem_id": idx, "theorem": thm},
+            kwargs={"theorem_id": thm_id, "theorem": thm},
             timeout=20,
         )
-        for idx, thm in enumerate(theorems)
+        for thm_id, thm in enumerate(theorems)
     ]
     jobs = queue.enqueue_many(prepared_jobs)
 
@@ -61,7 +62,7 @@ if __name__ == "__main__":
     while queue.started_job_registry.count == 0:
         time.sleep(0.1)
 
-    with tqdm(total=len(theorems), desc="Processing") as pbar:
+    with tqdm(total=len(jobs), desc="Processing") as pbar:
         while (queue.finished_job_registry.count + queue.failed_job_registry.count) < len(theorems):  # type:ignore
             pbar.n = queue.finished_job_registry.count + queue.failed_job_registry.count
             pbar.set_postfix({"failed jobs": queue.failed_job_registry.count})
@@ -71,11 +72,13 @@ if __name__ == "__main__":
         pbar.refresh()
 
     responses = [j.return_value() or {"theorem_id": j.kwargs["theorem_id"]} for j in jobs]
-    df["responses"] = sorted(responses, key=lambda x: x["theorem_id"])  # type:ignore
+    df["responses"] = sorted(responses, key=lambda x: x['theorem_id'])
     df["verified"] = responses
 
     df["verified"] = df["responses"].apply(
         lambda resp: len(resp) > 1
         and ("messages" not in resp or not any([ms["severity"] == "error" for ms in resp["messages"]]))
     )
+
+    df = df.groupby('informal_statement').agg(list)
     df.to_json(args.output)

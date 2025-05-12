@@ -8,7 +8,7 @@ import threading as t
 import time
 from pathlib import Path
 
-from rq import Queue, SimpleWorker
+from rq import Queue, SimpleWorker, Worker
 from rq.timeouts import JobTimeoutException
 from rq.job import Job
 
@@ -27,11 +27,11 @@ def handle_timeout_exception(job, exc_type, exc_value, traceback):
 
         new_pid = repl.reset()
         logging.info(f"rebooted repl: new pid={new_pid}")
-        return False
+        return True
     return False
 
 
-class VerifierWorker(SimpleWorker):
+class VerifierWorker(Worker):
     def __init__(
         self,
         *args,
