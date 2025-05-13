@@ -11,22 +11,24 @@ from pathlib import Path
 from rq import Queue, SimpleWorker, Worker
 from rq.timeouts import JobTimeoutException
 from rq.job import Job
+from rq.utils import now
+from datetime import timedelta, datetime
 
 from pyleanrepl.config import Config
 from pyleanrepl.repl import LeanRepl
 
 logging.basicConfig(level=logging.INFO)
 
+MAINTENANCE_INTERVAL_SECONDS = 120
 
 def handle_timeout_exception(job, exc_type, exc_value, traceback):
     # do custom things here
-    # for example, write the exception info to a DB
     if isinstance(exc_value, JobTimeoutException):
-        repl = job.kwargs["repl"]
-        logging.info(f"failure in repl: pid={repl.proc.pid}")
+        # repl = job.kwargs["repl"]
+        # logging.info(f"failure in repl: pid={repl.proc.pid}")
 
-        new_pid = repl.reset()
-        logging.info(f"rebooted repl: new pid={new_pid}")
+        # new_pid = repl.reset()
+        # logging.info(f"rebooted repl: new pid={new_pid}")
         return True
     return False
 
@@ -57,6 +59,31 @@ class VerifierWorker(Worker):
         # Attach the REPL instance to the job
         job.kwargs["repl"] = self.repl
         return super().execute_job(job, queue)
+
+    @property
+    def should_run_maintenance_tasks(self):
+        maintenance_interval = timedelta(seconds=MAINTENANCE_INTERVAL_SECONDS)
+        if self.last_cleaned_at is None:
+            return True
+        if (now() - self.last_cleaned_at) > maintenance_interval:
+            return True
+        return False
+
+    def run_maintenance_tasks(self):
+        """
+        Runs periodic maintenance tasks, these include:
+        1. Check if scheduler should be started. This check should not be run
+           on first run since worker.work() already calls
+           `scheduler.enqueue_scheduled_jobs()` on startup.
+        2. Cleaning registries
+        """
+        # No need to try to start scheduler on first run
+        if self.last_cleaned_at:
+            if self.scheduler and not self.scheduler._process:
+                self.scheduler.acquire_locks(auto_start=True)
+        new_pid = self.repl.reset(Config.imports)
+        logging.info(f"reset repl: new pid {new_pid}")
+        self.clean_registries()
 
 
 if __name__ == "__main__":
