@@ -19,18 +19,7 @@ from pyleanrepl.repl import LeanRepl
 
 logging.basicConfig(level=logging.INFO)
 
-def handle_timeout_exception(job, exc_type, exc_value, traceback):
-    if isinstance(exc_value, JobTimeoutException):
-        # repl = job.kwargs["repl"]
-        # logging.info(f"failure in repl: pid={repl.proc.pid}")
-
-        # new_pid = repl.reset()
-        # logging.info(f"rebooted repl: new pid={new_pid}")
-        return True
-    return False
-
-
-class VerifierWorker(Worker):
+class VerifierWorker(SimpleWorker):
     def __init__(
         self,
         *args,
@@ -51,38 +40,10 @@ class VerifierWorker(Worker):
         log_str = import_string.replace('\n', ', ')
         logging.info(f"{log_str} in {tok-tik:0.2f}s")
 
-        self.push_exc_handler(handle_timeout_exception)
-
     def execute_job(self, job: Job, queue: Queue):
         # Attach the REPL instance to the job
         job.kwargs["repl"] = self.repl
         return super().execute_job(job, queue)
-
-    @property
-    def should_run_maintenance_tasks(self):
-        maintenance_interval = timedelta(seconds=Config.maintenance_interval_seconds)
-        if self.last_cleaned_at is None:
-            return False
-        if (now() - self.last_cleaned_at) > maintenance_interval:
-            return True
-        return False
-
-    def run_maintenance_tasks(self):
-        """
-        Runs periodic maintenance tasks, these include:
-        1. Check if scheduler should be started. This check should not be run
-           on first run since worker.work() already calls
-           `scheduler.enqueue_scheduled_jobs()` on startup.
-        2. Cleaning registries
-        """
-        # No need to try to start scheduler on first run
-        if self.last_cleaned_at:
-            if self.scheduler and not self.scheduler._process:
-                self.scheduler.acquire_locks(auto_start=True)
-        new_pid = self.repl.reset(Config.imports)
-        logging.info(f"reset repl: new pid {new_pid}")
-        self.clean_registries()
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("client")

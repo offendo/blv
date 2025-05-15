@@ -13,7 +13,7 @@ from tqdm import tqdm
 logging.basicConfig(level=logging.INFO)
 
 def check_response_for_error(resp):
-    if 'response' not in resp:
+    if resp is None or 'response' not in resp:
         return (True, ['timeout or other REPL error'])
 
     resp = resp['response']
@@ -33,14 +33,14 @@ def check_response_for_error(resp):
     return (False, [])
 
 
-def verify_theorems(theorems: list[dict]):
+def verify_theorems(theorems: list[dict], timeout: int = 60):
     client = redis.Redis()
     queue = rq.Queue(connection=client)
 
     prepared_jobs = [
         queue.prepare_data(
             "src.pyleanrepl.job.verify",
-            kwargs={**thm, "timeout": 60},
+            kwargs={**thm, "timeout": timeout},
             timeout=None,
             result_ttl=-1, # Keep the job forever
         )
@@ -64,7 +64,7 @@ def verify_theorems(theorems: list[dict]):
         pbar.refresh()
     tok = time.time()
 
-    responses = [j.return_value() or {"theorem_id": j.kwargs["theorem_id"], 'theorem': j.kwargs['theorem']} for j in jobs]
+    responses = [j.return_value() or {"theorem_id": j.kwargs["theorem_id"]} for j in jobs]
     logging.info(f'Verified {len(theorems)} theorems in {tok-tik:0.3f}s')
     return responses
 
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     # Postprocess the responses
     df["response"] = sorted(responses, key=lambda x: x['theorem_id'])
     df['verified'] = df['response'].apply(lambda x: not check_response_for_error(x)[0])
-    df['error'] = df['response'].apply(lambda x: not check_response_for_error(x)[1])
+    df['error'] = df['response'].apply(lambda x: check_response_for_error(x)[1])
     df = df.groupby('informal_statement').agg(list)
 
     measure_stats(df, 'greedy')

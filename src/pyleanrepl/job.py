@@ -9,6 +9,5 @@ def remove_comments(formal_statement: str) -> str:
 
 def verify(theorem_id, theorem, timeout, repl):
     # Process the theorem
-    clean_theorem = remove_comments(theorem)
-    output = repl.interact(clean_theorem, environment=0, timeout=timeout)
-    return {"theorem_id": theorem_id, "theorem": clean_theorem, 'response': output}
+    output = repl.interact(theorem, environment=0, timeout=timeout)
+    return {"theorem_id": theorem_id, 'response': output}

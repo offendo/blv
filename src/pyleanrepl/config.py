@@ -7,6 +7,5 @@ class Config:
     project_path: str = os.path.expanduser("~/src/threaded-repl")
     backport: bool = False
     imports: list[str] = ['import Mathlib', 'import Aesop']
-    maintenance_interval_seconds = 60*30
 
 
