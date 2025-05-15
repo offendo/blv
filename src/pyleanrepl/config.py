@@ -3,7 +3,10 @@ import os
 
 
 class Config:
-    repl_path: str = os.path.expanduser("~/src/repl")
-    project_path: str = os.path.expanduser("~/src/repl")
+    repl_path: str = os.path.expanduser("~/src/threaded-repl")
+    project_path: str = os.path.expanduser("~/src/threaded-repl")
     backport: bool = False
-    imports: list[str] = []
+    imports: list[str] = ['import Mathlib', 'import Aesop']
+    maintenance_interval_seconds = 60*30
+
+

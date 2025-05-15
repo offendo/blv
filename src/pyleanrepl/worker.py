@@ -19,10 +19,7 @@ from pyleanrepl.repl import LeanRepl
 
 logging.basicConfig(level=logging.INFO)
 
-MAINTENANCE_INTERVAL_SECONDS = 120
-
 def handle_timeout_exception(job, exc_type, exc_value, traceback):
-    # do custom things here
     if isinstance(exc_value, JobTimeoutException):
         # repl = job.kwargs["repl"]
         # logging.info(f"failure in repl: pid={repl.proc.pid}")
@@ -51,7 +48,8 @@ class VerifierWorker(Worker):
         import_string = "\n".join(Config.imports or []) or "import Mathlib"
         self.repl.interact(import_string)
         tok = time.time()
-        logging.info(f"imported Mathlib in {tok-tik:0.2f}s")
+        log_str = import_string.replace('\n', ', ')
+        logging.info(f"{log_str} in {tok-tik:0.2f}s")
 
         self.push_exc_handler(handle_timeout_exception)
 
@@ -62,9 +60,9 @@ class VerifierWorker(Worker):
 
     @property
     def should_run_maintenance_tasks(self):
-        maintenance_interval = timedelta(seconds=MAINTENANCE_INTERVAL_SECONDS)
+        maintenance_interval = timedelta(seconds=Config.maintenance_interval_seconds)
         if self.last_cleaned_at is None:
-            return True
+            return False
         if (now() - self.last_cleaned_at) > maintenance_interval:
             return True
         return False

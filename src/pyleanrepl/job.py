@@ -1,4 +1,3 @@
-from pyleanrepl.repl import LeanRepl
 import re
 
 def remove_comments(formal_statement: str) -> str:
@@ -8,8 +7,8 @@ def remove_comments(formal_statement: str) -> str:
     no_blocks_or_inline = re.sub(inline_pattern, "", no_blocks, flags=re.DOTALL)
     return no_blocks_or_inline
 
-def verify(theorem_id: int, theorem: str, repl: LeanRepl):
+def verify(theorem_id, theorem, timeout, repl):
     # Process the theorem
     clean_theorem = remove_comments(theorem)
-    output = repl.interact(clean_theorem, environment=0)
-    return {"theorem_id": theorem_id, **output}
+    output = repl.interact(clean_theorem, environment=0, timeout=timeout)
+    return {"theorem_id": theorem_id, "theorem": clean_theorem, 'response': output}

@@ -60,8 +60,10 @@ class LeanRepl:
             self.proc.stdin.close()
         return self.proc.wait()
 
-    def interact(self, command: str, environment: int | None = None, timeout: int = 0) -> dict:
+    def interact(self, command: str, environment: int | None = None, timeout: int | None = None) -> dict:
         cmd: dict[str, Any] = {"allTactics": True}
+        if timeout:
+            cmd['timeout'] = timeout
         if os.path.exists(command):
             cmd["path"] = command
         else:
