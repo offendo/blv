@@ -35,6 +35,7 @@ class VerifierWorker(SimpleWorker):
         # Import necessary items
         tik = time.time()
         import_string = "\n".join(Config.imports or []) or "import Mathlib"
+        logging.info(f"importing {import_string.replace('\n', ', ').replace('import', '')}")
         self.repl.interact(import_string)
         tok = time.time()
         log_str = import_string.replace('\n', ', ')
