@@ -61,7 +61,7 @@ if __name__ == "__main__":
     theorems = df.formal_statement.str.replace("import Mathlib", "").apply(lambda x: x.strip()[:4096])
 
     # Verify the theorems
-    responses = verify_theorems([dict(theorem_id=i, theorem=thm) for i, thm in enumerate(theorems)])
+    responses = verify_theorems([dict(theorem_id=i, theorem=thm) for i, thm in enumerate(theorems)], timeout=20)
 
     # Postprocess the responses
     df["response"] = [r['response'] for r in responses]
