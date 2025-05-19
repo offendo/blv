@@ -3,28 +3,31 @@ import json
 import os
 import subprocess as sp
 import tempfile
+import socket
+import logging
+import time
 from argparse import ArgumentParser, FileType
 from pathlib import Path
 from typing import Any, Literal
 
-
-class TimeoutException(Exception): ...
-
-
-def timeout_handler(signum, frame):
-    raise TimeoutException("ran out of time")
+from pyleanrepl.config import Config
 
 
 class LeanRepl:
-    proc: sp.Popen[str]
+    proc: sp.Popen[str] | None
     env_id: int
     repl_path: str | Path
     project_path: str | Path
+    sock: socket.socket
 
-    def __init__(self, repl_path: str | Path, project_path: str | Path, backport: bool = False):
+    def __init__(self, repl_path: str | Path, project_path: str | Path, backport: bool = False, port: int | None = None):
         self.repl_path = repl_path
         self.project_path = project_path
         self.backport = backport
+        if port is None:
+            self.port = int(os.environ.get("REPL_PORT", 1344))
+        else:
+            self.port = port
 
     def __enter__(self):
         self.open()
@@ -36,7 +39,7 @@ class LeanRepl:
     def reset(self, imports: list[str] | None = None):
         self.close()
         pid = self.open()
-        self.interact("\n".join(imports or []) or "import Mathlib")
+        self.interact("\n".join(imports or Config.imports))
         return pid
 
     def open(self):
@@ -45,20 +48,32 @@ class LeanRepl:
         else:
             path = f"{self.repl_path}/.lake/build/bin/repl"
         self.proc = sp.Popen(
-            ["lake", "env", path],
-            cwd=self.project_path,
+            ["lake", "env", path, "--tcp", str(self.port)],
             stdin=sp.PIPE,
             stdout=sp.PIPE,
-            stderr=sp.STDOUT,
-            bufsize=0,
+            stderr=sp.PIPE,
+            cwd=self.project_path,
             universal_newlines=True,
         )
+        start = time.time()
+        self.sock = None
+        while self.sock is None and time.time() - start < 10:
+            try:
+                self.sock = socket.create_connection(("localhost", self.port))
+            except Exception as e:
+                print(f'Got error while trying to connect to REPL at port {self.port}: {e}...trying again')
+                time.sleep(1)
+                continue
+
+        logging.info(f"REPL open on port {self.port}")
         return self.proc.pid
 
     def close(self):
-        if self.proc.stdin:
-            self.proc.stdin.close()
-        return self.proc.wait()
+        if self.proc:
+            self.sock.close()
+            self.proc.terminate()
+            logging.info(f"closed port {self.port}")
+        self.proc = None
 
     def interact(self, command: str, environment: int | None = None, timeout: int | None = None) -> dict:
         cmd: dict[str, Any] = {"allTactics": True}
@@ -72,45 +87,31 @@ class LeanRepl:
         if environment is not None:
             cmd["env"] = environment
 
-        # Send the message
-        assert self.proc.stdin is not None
-        assert self.proc.stdout is not None
+        # Send the package, then wait for the initial response.
+        bytes_sent = self.sock.send(json.dumps(cmd).encode())
 
-        # NOTE: Need the .flush afterwards, otherwise things start breaking after 65000 bytes
-        # written, apparently due to some hidden unix buffer size.
-        self.proc.stdin.write(json.dumps(cmd) + "\n\n")
-        self.proc.stdin.flush()
+        # Read in the packet; initially we start with 16kb
+        bytes_read = 2 ** 14 # 16kb
+        packet = self.sock.recv(bytes_read)
+        size_info = packet.split(b"\n")[0]
+        bytes_for_size_info = len(size_info) + 1 # +1 for the newline
+        response_size = int(size_info)
 
-        stdout = self._read_stream("stdout")
-        self.proc.stdout.flush()
+        # Then if it turns out we need more, read in the amount we need
+        # r = 2^14
+        # br = 2^14
+        if response_size + bytes_for_size_info > bytes_read:
+            remainder = response_size + bytes_for_size_info - bytes_read
+            try:
+                packet += self.sock.recv(remainder, socket.MSG_DONTWAIT)
+            except BlockingIOError as e:
+                logging.error(f"Something went wrong: tried to read {remainder} bytes but there was nothing to be read!")
 
-        # Wait for the response
-        out = json.loads(stdout) if stdout else {}
+        # Discard the size info from the packet
+        response = packet.split(b"\n", 1)[1]
+
+        # Read in the info & return
+        out = json.loads(response) if response else {}
+        print('Got: ', out, flush=True)
         self.env_id = out.get("env", None)
         return out
-
-    def _read_stream(self, stream: Literal["stdout", "stderr"]) -> str | None:
-        stdio = self.proc.stdout if stream == "stdout" else self.proc.stderr
-        assert stdio is not None
-
-        out = []
-        while True:
-            line = stdio.readline()
-            if not line.strip() and len(out) >= 1:
-                break
-            out.extend(line)
-        return "".join(out).strip()
-
-    def _read_stream_char(self, stream: Literal["stdout", "stderr"]) -> str:
-        stdio = self.proc.stdout if stream == "stdout" else self.proc.stderr
-        assert stdio is not None
-
-        newlines = ["\n", "\n\r", "\r", ""]
-        out = []
-        last = stdio.read(1)
-        while True:
-            out.append(last)
-            if all([x in newlines for x in out[-2:]]) and len(out) >= 1:
-                break
-            last = stdio.read(1)
-        return "".join(out).strip()
