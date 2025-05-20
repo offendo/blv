@@ -6,12 +6,18 @@ import tempfile
 import socket
 import logging
 import time
+import uuid
 from argparse import ArgumentParser, FileType
 from pathlib import Path
 from typing import Any, Literal
 
 from pyleanrepl.config import Config
 
+
+def get_random_port():
+    sock = socket.socket()
+    sock.bind(('', 0))
+    return sock.getsockname()[1]
 
 class LeanRepl:
     proc: sp.Popen[str] | None
@@ -20,14 +26,10 @@ class LeanRepl:
     project_path: str | Path
     sock: socket.socket
 
-    def __init__(self, repl_path: str | Path, project_path: str | Path, backport: bool = False, port: int | None = None):
+    def __init__(self, repl_path: str | Path, project_path: str | Path, backport: bool = False):
         self.repl_path = repl_path
         self.project_path = project_path
         self.backport = backport
-        if port is None:
-            self.port = int(os.environ.get("REPL_PORT", 1344))
-        else:
-            self.port = port
 
     def __enter__(self):
         self.open()
@@ -47,34 +49,36 @@ class LeanRepl:
             path = f"{self.repl_path}/build/bin/repl"
         else:
             path = f"{self.repl_path}/.lake/build/bin/repl"
+        port = get_random_port()
         self.proc = sp.Popen(
-            ["lake", "env", path, "--tcp", str(self.port)],
+            ["lake", "env", path, "--tcp", str(port)],
             stdin=sp.PIPE,
             stdout=sp.PIPE,
             stderr=sp.PIPE,
             cwd=self.project_path,
             universal_newlines=True,
         )
+        time.sleep(0.5)
         start = time.time()
         self.sock = None
         while self.sock is None and time.time() - start < 10:
             try:
-                self.sock = socket.create_connection(("localhost", self.port))
+                self.sock = socket.create_connection(("localhost", port))
             except Exception as e:
-                print(f'Got error while trying to connect to REPL at port {self.port}: {e}...trying again')
                 time.sleep(1)
                 continue
         if self.sock is None:
             raise Exception("Couldn't connect to the REPL; probably busted")
 
-        logging.info(f"REPL open on port {self.port}")
+        logging.info(f"REPL open on port {port}")
         return self.proc.pid
 
     def close(self):
         if self.proc:
+            port = self.sock.getsockname()[1]
             self.sock.close()
             self.proc.terminate()
-            logging.info(f"closed port {self.port}")
+            logging.info(f"closed port {port}")
         self.proc = None
 
     def interact(self, command: str, environment: int | None = None, timeout: int | None = None) -> dict:
@@ -94,17 +98,32 @@ class LeanRepl:
         bytes_sent = self.sock.send(json.dumps(cmd).encode())
 
         # Read in the packet; initially we start with 16kb
-        bufsize = 2 ** 14 # 16kb
+        bufsize = 2 ** 16 # 64kb
         response = self.sock.recv(bufsize)
-        while True:
-            try:
-                response += self.sock.recv(bufsize, socket.MSG_DONTWAIT)
-            except BlockingIOError as e:
-                break
+        try:
+            out = json.loads(response)
+        except Exception as e:
+            while True:
+                time.sleep(0.1)
+                try:
+                    response += self.sock.recv(bufsize, socket.MSG_DONTWAIT)
+                except BlockingIOError as e:
+                    break
         end = time.time()
 
         # Read in the info & return
-        out = json.loads(response) if response else {}
-        out['time'] = end - start
-        self.env_id = out.get("env", None)
-        return out
+        try:
+            out = json.loads(response)
+            out['time'] = end - start
+            self.env_id = out.get("env", None)
+            return out
+        except json.JSONDecodeError as e:
+            logging.error(f"Failed to decode response from REPL ({len(response)} bytes).")
+            file = uuid.uuid4()
+            with open(f'/tmp/{file}.json', 'wb') as f:
+                f.write(response)
+            out = {}
+            out['time'] = end - start
+            out['error'] = str(e)
+            return out
+
