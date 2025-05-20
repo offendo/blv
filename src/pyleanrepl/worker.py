@@ -23,24 +23,24 @@ class VerifierWorker(SimpleWorker):
     def __init__(
         self,
         *args,
+        repl_path: str = Config.repl_path,
+        project_path: str = Config.project_path,
+        backport: bool = Config.backport,
+        imports: list[str] = Config.imports,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
 
         # Boot the repl
-        self.repl = LeanRepl(repl_path=Config.repl_path, project_path=Config.project_path, backport=Config.backport)
+        self.repl = LeanRepl(repl_path=repl_path, project_path=project_path, backport=backport)
         self.pid = self.repl.open()
         logging.info(f"successfully booted repl: pid={self.pid}")
 
         # Import necessary items
-        tik = time.time()
-        import_string = "\n".join(Config.imports or []) or "import Mathlib"
-        for module in Config.imports:
-            logging.info(f"importing {module.replace('import', '')}")
-        self.repl.interact(import_string)
-        tok = time.time()
-        log_str = import_string.replace('\n', ', ')
-        logging.info(f"{log_str} in {tok-tik:0.2f}s")
+        import_string = "\n".join(imports)
+        log_str = import_string.replace('\n', ', ').replace('import', '')
+        out = self.repl.interact(import_string)
+        logging.info(f"imported {log_str} in {out['time']:0.2f}s")
 
     def execute_job(self, job: Job, queue: Queue):
         # Attach the REPL instance to the job

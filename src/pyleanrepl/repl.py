@@ -89,21 +89,22 @@ class LeanRepl:
         if environment is not None:
             cmd["env"] = environment
 
+        start = time.time()
         # Send the package, then wait for the initial response.
         bytes_sent = self.sock.send(json.dumps(cmd).encode())
 
         # Read in the packet; initially we start with 16kb
         bufsize = 2 ** 14 # 16kb
-        packet = self.sock.recv(bufsize)
+        response = self.sock.recv(bufsize)
         while True:
             try:
-                packet += self.sock.recv(bufsize, socket.MSG_DONTWAIT)
+                response += self.sock.recv(bufsize, socket.MSG_DONTWAIT)
             except BlockingIOError as e:
                 break
-
-        response = packet
+        end = time.time()
 
         # Read in the info & return
         out = json.loads(response) if response else {}
+        out['time'] = end - start
         self.env_id = out.get("env", None)
         return out
