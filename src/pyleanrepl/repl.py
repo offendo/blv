@@ -64,6 +64,8 @@ class LeanRepl:
                 print(f'Got error while trying to connect to REPL at port {self.port}: {e}...trying again')
                 time.sleep(1)
                 continue
+        if self.sock is None:
+            raise Exception("Couldn't connect to the REPL; probably busted")
 
         logging.info(f"REPL open on port {self.port}")
         return self.proc.pid
@@ -91,27 +93,17 @@ class LeanRepl:
         bytes_sent = self.sock.send(json.dumps(cmd).encode())
 
         # Read in the packet; initially we start with 16kb
-        bytes_read = 2 ** 14 # 16kb
-        packet = self.sock.recv(bytes_read)
-        size_info = packet.split(b"\n")[0]
-        bytes_for_size_info = len(size_info) + 1 # +1 for the newline
-        response_size = int(size_info)
-
-        # Then if it turns out we need more, read in the amount we need
-        # r = 2^14
-        # br = 2^14
-        if response_size + bytes_for_size_info > bytes_read:
-            remainder = response_size + bytes_for_size_info - bytes_read
+        bufsize = 2 ** 14 # 16kb
+        packet = self.sock.recv(bufsize)
+        while True:
             try:
-                packet += self.sock.recv(remainder, socket.MSG_DONTWAIT)
+                packet += self.sock.recv(bufsize, socket.MSG_DONTWAIT)
             except BlockingIOError as e:
-                logging.error(f"Something went wrong: tried to read {remainder} bytes but there was nothing to be read!")
+                break
 
-        # Discard the size info from the packet
-        response = packet.split(b"\n", 1)[1]
+        response = packet
 
         # Read in the info & return
         out = json.loads(response) if response else {}
-        print('Got: ', out, flush=True)
         self.env_id = out.get("env", None)
         return out
