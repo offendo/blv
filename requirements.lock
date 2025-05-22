@@ -15,23 +15,23 @@ click==8.1.8
 hiredis==3.1.0
     # via redis
 more-itertools==10.7.0
-    # via pyleanrepl
+    # via blv
 numpy==2.2.5
     # via pandas
 pandas==2.2.3
-    # via pyleanrepl
+    # via blv
 python-dateutil==2.9.0.post0
     # via pandas
 pytz==2025.2
     # via pandas
 redis==6.0.0
-    # via pyleanrepl
+    # via blv
     # via rq
 rq==2.3.2
-    # via pyleanrepl
+    # via blv
 six==1.17.0
     # via python-dateutil
 tqdm==4.67.1
-    # via pyleanrepl
+    # via blv
 tzdata==2025.2
     # via pandas

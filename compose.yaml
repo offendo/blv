@@ -1,0 +1,16 @@
+services:
+  redis:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+    ports:
+      - "6379:6379"
+  blv:
+    image: "ghcr.io/offendo/blv:${LEAN_VERSION}"
+    env_file:
+      - path: .env
+        required: true
+    command: ["rq", "worker-pool", "-u", "redis://redis:6379", "-q", "-n", "${N_WORKERS}", "--worker-class", "src.blv.worker.VerifierWorker"]
+    depends_on:
+      - redis
+    volumes:
+      - ${PROJECT_PATH}:/project
+      - .:/blv/

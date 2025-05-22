@@ -5,16 +5,19 @@ from tqdm import tqdm
 import logging
 
 def check_response_for_error(resp):
-    if resp is None or 'response' not in resp:
-        return {'verified': False, 'errors': ['timeout or other REPL error']}
+    # If the job return value is nothing, something failed in the 
+    if resp is None:
+        return {'verified': False, 'errors': ["Job failed; please report an issue on GitHub because this should never happen."]}
 
-    resp = resp['response']
+    # If the REPL sends back a 'message' with 'timeout', then we timed out (failure)
+    if 'timeout' in resp.get('message', ''):
+        return {'verified': False, 'errors': ['timeout']}
+
+    # Otherwise it might have an 'error' keyword, in which case we fail with that error
     if 'error' in resp:
         return {'verified': False, 'errors': [resp['error']]}
 
-    if 'message' in resp and len(resp) == 1:
-        return {'verified': False, 'errors': [resp['message']]}
-
+    # Finally, we need to make sure there aren't any syntax/semantic errors from the compiler
     if 'messages' in resp:
         errors = []
         for msg in resp['messages']:
@@ -22,16 +25,16 @@ def check_response_for_error(resp):
                 errors.append(msg)
         return {'verified': len(errors) == 0, 'errors': errors}
 
+    # If all that is good, then we return with no errors.
     return {'verified': True, 'errors': []}
 
 
-def verify_theorems(theorems: list[dict], timeout: int = 60):
-    client = redis.Redis()
-    queue = rq.Queue(connection=client)
+def verify_theorems(theorems: list[dict], connection: redis.Redis, timeout: int = 60):
+    queue = rq.Queue(connection=connection)
 
     prepared_jobs = [
         queue.prepare_data(
-            "src.pyleanrepl.job.verify",
+            "src.blv.job.verify",
             kwargs={**thm, "timeout": timeout},
             timeout=None,
             result_ttl=-1, # Keep the job forever
@@ -59,7 +62,7 @@ def verify_theorems(theorems: list[dict], timeout: int = 60):
     tok = time.time()
     logging.info(f'Verified {len(theorems)} theorems in {tok-tik:0.3f}s')
 
-    responses = [j.return_value() or {"theorem_id": j.kwargs["theorem_id"]} for j in jobs]
+    responses = [j.return_value() for j in jobs]
     output = [{'response': r, **check_response_for_error(r)} for r in responses]
     return output
 

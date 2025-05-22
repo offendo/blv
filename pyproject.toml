@@ -1,5 +1,5 @@
 [project]
-name = "pyleanrepl"
+name = "blv"
 version = "0.1.1"
 description = "Simple wrapper for LeanREPL"
 authors = [
@@ -28,13 +28,13 @@ dev-dependencies = [
 ]
 
 [tool.rye.scripts]
-repl = {"cmd" = "python src/pyleanrepl/repl.py"}
+repl = {"cmd" = "python src/blv/repl.py"}
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pyleanrepl"]
+packages = ["src/blv"]
 
 [tool.black]
 line-length = 120

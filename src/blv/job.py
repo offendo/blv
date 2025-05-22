@@ -9,5 +9,9 @@ def remove_comments(formal_statement: str) -> str:
 
 def verify(theorem_id, theorem, timeout, repl):
     # Process the theorem
-    output = repl.interact(theorem, environment=0, timeout=timeout)
-    return {"theorem_id": theorem_id, 'response': output}
+    try:
+        response = repl.interact(theorem, environment=0, timeout=timeout)
+        return {"theorem_id": theorem_id, **response}
+    except Exception as e:
+        return {"theorem_id": theorem_id, 'error': str(e)}
+

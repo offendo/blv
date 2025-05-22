@@ -14,8 +14,8 @@ from rq.job import Job
 from rq.utils import now
 from datetime import timedelta, datetime
 
-from pyleanrepl.config import Config
-from pyleanrepl.repl import LeanRepl
+from blv.config import Config
+from blv.repl import LeanRepl
 
 logging.basicConfig(level=logging.INFO)
 

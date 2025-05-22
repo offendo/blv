@@ -3,11 +3,12 @@ from argparse import ArgumentParser, FileType
 
 import rq
 
-from pyleanrepl.repl import LeanRepl
+from blv.repl import LeanRepl
 
 if __name__ == "__main__":
-    parser = ArgumentParser("pyleanrepl")
+    parser = ArgumentParser("blv")
     subparsers = parser.add_subparsers()
+
     parser.add_argument("--repl", "-r", type=str, default="repl", help="path to lean repl dir (which has been built with `lake build`)")
     parser.add_argument("--project", "-p", type=str, default=".", help="path to lean project dir (which has been built with `lake build`)")
     parser.add_argument("--backport", "-b", action='store_true', help="whether the repl is backported or not")
@@ -22,7 +23,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.server:
-        from pyleanrepl.worker import VerifierWorker
+        from blv.worker import VerifierWorker
         VerifierWorker(['default'], 
 
     if args.cli:

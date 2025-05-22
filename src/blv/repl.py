@@ -11,7 +11,7 @@ from argparse import ArgumentParser, FileType
 from pathlib import Path
 from typing import Any, Literal
 
-from pyleanrepl.config import Config
+from src.blv.config import Config
 
 
 def get_random_port():
@@ -119,11 +119,6 @@ class LeanRepl:
             return out
         except json.JSONDecodeError as e:
             logging.error(f"Failed to decode response from REPL ({len(response)} bytes).")
-            file = uuid.uuid4()
-            with open(f'/tmp/{file}.json', 'wb') as f:
-                f.write(response)
-            out = {}
-            out['time'] = end - start
-            out['error'] = str(e)
+            out = {'time': end-start, 'error': str(e)}
             return out
 

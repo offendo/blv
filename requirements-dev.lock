@@ -31,7 +31,7 @@ jedi==0.19.2
 matplotlib-inline==0.1.7
     # via ipython
 more-itertools==10.7.0
-    # via pyleanrepl
+    # via blv
 mypy-extensions==1.1.0
     # via black
 numpy==2.2.5
@@ -39,7 +39,7 @@ numpy==2.2.5
 packaging==25.0
     # via black
 pandas==2.2.3
-    # via pyleanrepl
+    # via blv
 parso==0.8.4
     # via jedi
 pathspec==0.12.1
@@ -62,16 +62,16 @@ python-dateutil==2.9.0.post0
 pytz==2025.2
     # via pandas
 redis==6.0.0
-    # via pyleanrepl
+    # via blv
     # via rq
 rq==2.3.2
-    # via pyleanrepl
+    # via blv
 six==1.17.0
     # via python-dateutil
 stack-data==0.6.3
     # via ipython
 tqdm==4.67.1
-    # via pyleanrepl
+    # via blv
 traitlets==5.14.3
     # via ipython
     # via matplotlib-inline
