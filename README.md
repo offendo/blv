@@ -90,11 +90,6 @@ df.to_json('examples/example-verified.json')
 
 
 
-```bash
-❯ python -m blv -h
-usage: blv [-h] [--repl REPL] [--project PROJECT] [--output OUTPUT] lean
-```
-
 As a library you can use the `LeanRepl` object directly, which is fairly straightforward
 ```python
 from blv import LeanRepl
