@@ -21,7 +21,7 @@ RUN curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -
     lake --version; \
     apt update -y; \
     apt install -y git lsb-release gcc redis python3 python3-pip; \
-    git clone --depth 1 --branch v4.20.0-rc5 https://github.com/offendo/repl.git; \
+    git clone --depth 1 --branch ${LEAN_VERSION} https://github.com/offendo/repl.git; \
     git clone --depth 1 --branch main https://github.com/offendo/pyleanrepl.git; \
     (cd repl && lake build); \
     (cd pyleanrepl && pip install --break-system-packages -r requirements.lock);
