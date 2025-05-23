@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 import json
+import logging
 import os
+import socket
 import subprocess as sp
 import tempfile
-import socket
-import logging
 import time
 import uuid
 from argparse import ArgumentParser, FileType
 from pathlib import Path
 from typing import Any, Literal
 
+
 def get_random_port():
     sock = socket.socket()
-    sock.bind(('', 0))
+    sock.bind(("", 0))
     return sock.getsockname()[1]
+
 
 class LeanRepl:
     proc: sp.Popen[str] | None
@@ -81,7 +83,7 @@ class LeanRepl:
     def interact(self, command: str, environment: int | None = None, timeout: int | None = None) -> dict:
         cmd: dict[str, Any] = {"allTactics": True}
         if timeout:
-            cmd['timeout'] = timeout
+            cmd["timeout"] = timeout
         if os.path.exists(command):
             cmd["path"] = command
         else:
@@ -95,7 +97,7 @@ class LeanRepl:
         bytes_sent = self.sock.send(json.dumps(cmd).encode())
 
         # Read in the packet; initially we start with 16kb
-        bufsize = 2 ** 16 # 64kb
+        bufsize = 2**16  # 64kb
         response = self.sock.recv(bufsize)
         try:
             out = json.loads(response)
@@ -111,11 +113,10 @@ class LeanRepl:
         # Read in the info & return
         try:
             out = json.loads(response)
-            out['time'] = end - start
+            out["time"] = end - start
             self.env_id = out.get("env", None)
             return out
         except json.JSONDecodeError as e:
             logging.error(f"Failed to decode response from REPL ({len(response)} bytes).")
-            out = {'time': end-start, 'error': str(e)}
+            out = {"time": end - start, "error": str(e)}
             return out
-

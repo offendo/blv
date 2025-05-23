@@ -21,6 +21,7 @@ def benchmark_api(n):
 
     # Verify the proofs
     r = redis.Redis("localhost", port=6379, db=0)
+    r.flushdb()
     results = verify_theorems(samples, connection=r, timeout=60)
 
     # Now do a little formatting then save it

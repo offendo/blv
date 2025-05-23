@@ -6,18 +6,19 @@ import os
 import subprocess as sp
 import threading as t
 import time
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from rq import Queue, SimpleWorker, Worker
-from rq.timeouts import JobTimeoutException
 from rq.job import Job
+from rq.timeouts import JobTimeoutException
 from rq.utils import now
-from datetime import timedelta, datetime
 
 from blv.config import Config
 from blv.repl import LeanRepl
 
 logging.basicConfig(level=logging.INFO)
+
 
 class VerifierWorker(SimpleWorker):
     def __init__(
@@ -38,7 +39,7 @@ class VerifierWorker(SimpleWorker):
 
         # Import necessary items
         import_string = "\n".join(imports)
-        log_str = import_string.replace('\n', ', ').replace('import', '')
+        log_str = import_string.replace("\n", ", ").replace("import", "")
         out = self.repl.interact(import_string)
         logging.info(f"imported {log_str} in {out['time']:0.2f}s")
 
@@ -46,6 +47,7 @@ class VerifierWorker(SimpleWorker):
         # Attach the REPL instance to the job
         job.kwargs["repl"] = self.repl
         return super().execute_job(job, queue)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("client")
