@@ -8,8 +8,8 @@ from tqdm import tqdm
 
 
 def check_response_for_error(resp):
-    # If the job return value is nothing, something failed in the
-    if resp is None:
+    # If the job return value is nothing, something failed in the REPL
+    if resp is None or len(resp) == 0:
         return {
             "verified": False,
             "errors": ["Job failed; please report an issue on GitHub because this should never happen."],
@@ -51,7 +51,7 @@ def verify_theorems(theorems: list[dict], connection: redis.Redis, timeout: int 
 
     # Wait to start pbar until 1 at least is in the queue
     logging.info(f"Waiting for workers...")
-    while queue.started_job_registry.count == 0:
+    while queue.started_job_registry.count == 0 and queue.finished_job_registry.count != 0 and queue.failed_job_registry.count != 0:
         time.sleep(0.1)
 
     # Show progress bar of verified theorems

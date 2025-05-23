@@ -38,6 +38,4 @@ def benchmark_api(n):
 
 
 if __name__ == "__main__":
-    print('Launching jobs...')
     benchmark_api(100)
-    print('Done!')
