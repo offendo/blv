@@ -4,7 +4,7 @@
 
 It's still a work in progress - notably, `blv` doesn't support changing imports from theorem-to-theorem yet (i.e., every theorem must have the same imports). This feature will come soon, though keeping consistent headers will make verification faster.
 
-# Installation
+## Installation
 
 `blv` uses `redis` (and python's `rq`) as a worker queue, and a custom fork of [Lean REPL](https://github.com/offendo/repl) (which supports timeouts) to handle the actual verification part.
 
@@ -43,7 +43,7 @@ redis-cli --version
 
 ```
 
-# Usage
+## Usage
 
 `blv` is primarily for quickly verifying a large amount of theorems/proofs in parallel. This is currently done using `rq`.
 
@@ -90,7 +90,12 @@ df.to_json('examples/example-verified.json')
 
 
 
-As a library you can use the `LeanRepl` object directly, which is fairly straightforward
+### From Python
+
+You can use the `LeanRepl` object directly, which is fairly straightforward. This is basically just a thin wrapper around the Lean REPL, but it communicates via TCP which I think is slightly nicer than stdio, which caused a bunch of problems before. 
+
+**Note:** there's no parallelization in this usage. If you have a small number of theorems to verify all using the same imports, this might suffice. For more than ~20 theorems, parallelization is pretty critical for speed, and there's really no downside to interacting via the worker queue. 
+
 ```python
 from blv import LeanRepl
 
@@ -107,9 +112,22 @@ with LeanRepl(repl_path, proj_path) as repl:
     r2 = repl.interact(ex2, env=new_env) 
 
     
-# You can also use it as an object 
+# You can also ignore the context manager. 
 repl = LeanRepl(repl_path, proj_path)
 repl.open()
 response = repl.interact("def f : Nat := 5")
 repl.close()
 ```
+
+
+
+## Benchmarks
+
+Stolen from [kimina-lean-server](https://github.com/project-numina/kimina-lean-server), I ran benchmarks to compare with them. 
+
+| Mode                | Valid Proofs (%) | Total Verification Time (s) | Average Verification Time (s) |
+| ------------------- | ---------------- | --------------------------- | ----------------------------- |
+| Kimina (Cached)     | 96.00            | 350.29                      | 3.65                          |
+| Kimina (Non-Cached) | 96.00            | 493.67                      | 5.14                          |
+|                     |                  |                             |                               |
+
