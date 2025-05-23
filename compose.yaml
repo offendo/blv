@@ -13,4 +13,5 @@ services:
       - redis
     volumes:
       - ${PROJECT_PATH}:/project
-      - .:/blv/
+      - ./src/:/blv/src/
+      - ./examples/:/blv/examples/

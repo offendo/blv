@@ -27,4 +27,3 @@ RUN curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -
     (cd blv && pip install --break-system-packages -r requirements.lock);
 
 WORKDIR /blv
-CMD ["bash", "start_workers.sh"]
