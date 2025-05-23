@@ -1,1 +1,1 @@
-from src.blv.repl import LeanRepl
+from blv.repl import LeanRepl

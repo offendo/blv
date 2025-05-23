@@ -11,9 +11,6 @@ from argparse import ArgumentParser, FileType
 from pathlib import Path
 from typing import Any, Literal
 
-from src.blv.config import Config
-
-
 def get_random_port():
     sock = socket.socket()
     sock.bind(('', 0))
@@ -38,17 +35,17 @@ class LeanRepl:
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
-    def reset(self, imports: list[str] | None = None):
+    def reset(self, imports: list[str]):
         self.close()
         pid = self.open()
-        self.interact("\n".join(imports or Config.imports))
+        self.interact("\n".join(imports))
         return pid
 
     def open(self):
         if self.backport:
-            path = f"{self.repl_path}/build/bin/repl"
+            path = str(Path(f"{self.repl_path}/build/bin/repl").absolute())
         else:
-            path = f"{self.repl_path}/.lake/build/bin/repl"
+            path = str(Path(f"{self.repl_path}/.lake/build/bin/repl").absolute())
         port = get_random_port()
         self.proc = sp.Popen(
             ["lake", "env", path, "--tcp", str(port)],

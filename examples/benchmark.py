@@ -4,7 +4,7 @@ import redis
 from datasets import load_dataset
 import pandas as pd
 
-from launch import verify_theorems, check_response_for_error
+from blv.verify import verify_theorems, check_response_for_error
 
 def remove_header(thm):
     return '\n'.join([line for line in thm.splitlines() if not line.startswith('import')])
@@ -21,7 +21,7 @@ def benchmark_api(n):
 
     # Verify the proofs
     r = redis.Redis("localhost", port=6379, db=0)
-    results = verify_theorems(samples, connection=r, timeout=20)
+    results = verify_theorems(samples, connection=r, timeout=60)
 
     # Now do a little formatting then save it
     df = pd.DataFrame({'theorem': [s['theorem'] for s in samples], 'theorem_id': [s['theorem_id'] for s in samples], 'response': results})
@@ -38,5 +38,5 @@ def benchmark_api(n):
 
 if __name__ == "__main__":
     print('Launching jobs...')
-    benchmark_api(10)
+    benchmark_api(100)
     print('Done!')
