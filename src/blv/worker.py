@@ -34,12 +34,14 @@ class VerifierWorker(Worker):
         super().__init__(*args, **kwargs)
 
         # Boot the repl
-        self.repl = LeanRepl(repl_path=repl_path, project_path=project_path, backport=backport)
+        self.repl = LeanRepl(
+            repl_path=repl_path, project_path=project_path, backport=backport
+        )
         self.repl.init_repl()
 
         # Import necessary items
         import_string = "\n".join(imports)
-        log_string = import_string.replace('import ', '').replace('\n', '/')
+        log_string = import_string.replace("import ", "").replace("\n", "/")
         with Timer(f"imported {log_string}: " + "{}", logging.info):
             out = self.repl.query(import_string)
 
@@ -55,6 +57,7 @@ if __name__ == "__main__":
     # data
     parser.add_argument("--repl", type=str, required=True)
     parser.add_argument("--backport", action="store_true")
+    parser.add_argument("--imports", nargs="+", type=str, required=False, default=[])
 
     # redis stuff
     parser.add_argument("--host", default="localhost")
@@ -67,4 +70,5 @@ if __name__ == "__main__":
         repl_path=args.repl,
         project_path=args.repl,
         backport=args.backport,
+        imoprts=args.import,
     )
