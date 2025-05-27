@@ -5,6 +5,7 @@ import redis
 import rq
 from rq.serializers import JSONSerializer
 from tqdm import tqdm
+from blv.job import verify
 
 
 def check_response_for_error(resp):
@@ -40,7 +41,7 @@ def verify_theorems(theorems: list[dict], connection: redis.Redis, timeout: int 
 
     prepared_jobs = [
         queue.prepare_data(
-            "src.blv.job.verify",
+            verify,
             kwargs={**thm, "timeout": timeout},
             timeout=None,
             result_ttl=-1,  # Keep the job forever
@@ -51,7 +52,11 @@ def verify_theorems(theorems: list[dict], connection: redis.Redis, timeout: int 
 
     # Wait to start pbar until 1 at least is in the queue
     logging.info(f"Waiting for workers...")
-    while queue.started_job_registry.count == 0 and queue.finished_job_registry.count != 0 and queue.failed_job_registry.count != 0:
+    while (
+        queue.started_job_registry.count == 0
+        and queue.finished_job_registry.count != 0
+        and queue.failed_job_registry.count != 0
+    ):
         time.sleep(0.1)
 
     # Show progress bar of verified theorems

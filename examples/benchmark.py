@@ -6,16 +6,13 @@ import pandas as pd
 
 from blv.verify import verify_theorems, check_response_for_error
 
-def remove_header(thm):
-    return '\n'.join([line for line in thm.splitlines() if not line.startswith('import')])
-
 def benchmark_api(n):
     # Load data
     dataset = load_dataset("Goedel-LM/Lean-workbook-proofs", split="train")
     dataset = dataset.select(range(n))
 
     samples = [
-        {"theorem_id": sample["problem_id"], "theorem": remove_header(sample["full_proof"])}
+        {"theorem_id": sample["problem_id"], "theorem": sample["full_proof"]}
         for sample in dataset
     ]
 

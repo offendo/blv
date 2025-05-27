@@ -58,7 +58,8 @@ if __name__ == "__main__":
     df = pd.read_json(args.data)
     df = df[: args.num_samples] if args.num_samples > 0 else df
     df = df.explode(['formal_statement', 'name', 'certainty_score', 'similarity_score', 'score', 'aligned']).reset_index(drop=True)
-    theorems = df.formal_statement.str.replace("import Mathlib", "").apply(lambda x: x.strip()[:4096])
+    # theorems = df.formal_statement.str.replace("import Mathlib", "").apply(lambda x: x.strip()[:4096])
+    theorems = df.formal_statement.apply(lambda x: x.strip()[:4096])
 
     # Verify the theorems
     responses = verify_theorems(

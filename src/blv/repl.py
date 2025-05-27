@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
+from functools import lru_cache
 import json
 import logging
-import os
 import socket
 import subprocess as sp
-import tempfile
 import time
-import uuid
-from argparse import ArgumentParser, FileType
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
+from .utils import make_header_key, parse_header, Timer
 
 
 def get_random_port():
@@ -25,98 +23,87 @@ class LeanRepl:
     project_path: str | Path
     sock: socket.socket
 
-    def __init__(self, repl_path: str | Path, project_path: str | Path, backport: bool = False):
+    def __init__(
+        self, repl_path: str | Path, project_path: str | Path, backport: bool = False, host: str = "localhost"
+    ):
         self.repl_path = repl_path
         self.project_path = project_path
         self.backport = backport
+        self.port = get_random_port()
+        self.host = host
+        self.init_repl()
 
-    def __enter__(self):
-        self.open()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.close()
-
-    def reset(self, imports: list[str]):
-        self.close()
-        pid = self.open()
-        self.interact("\n".join(imports))
-        return pid
-
-    def open(self):
-        if self.backport:
-            path = str(Path(f"{self.repl_path}/build/bin/repl").absolute())
-        else:
-            path = str(Path(f"{self.repl_path}/.lake/build/bin/repl").absolute())
-        port = get_random_port()
+    def init_repl(self):
+        path = str(Path(f"{self.repl_path}/.lake/build/bin/repl").absolute())
         self.proc = sp.Popen(
-            ["lake", "env", path, "--tcp", str(port)],
+            ["lake", "env", path, "--tcp", str(self.port)],
             stdin=sp.PIPE,
             stdout=sp.PIPE,
             stderr=sp.PIPE,
             cwd=self.project_path,
             universal_newlines=True,
         )
-        time.sleep(0.5)
-        start = time.time()
-        self.sock = None
-        while self.sock is None and time.time() - start < 10:
-            try:
-                self.sock = socket.create_connection(("localhost", port))
-            except Exception as e:
-                time.sleep(1)
-                continue
-        if self.sock is None:
-            raise Exception("Couldn't connect to the REPL; probably busted")
 
-        logging.info(f"REPL open on port {port}")
-        return self.proc.pid
-
-    def close(self):
-        if self.proc:
-            port = self.sock.getsockname()[1]
-            self.sock.close()
-            self.proc.terminate()
-            logging.info(f"closed port {port}")
-        self.proc = None
-
-    def interact(self, command: str, environment: int | None = None, timeout: int | None = None) -> dict:
-        cmd: dict[str, Any] = {"allTactics": True}
-        if timeout:
-            cmd["timeout"] = timeout
-        if os.path.exists(command):
-            cmd["path"] = command
-        else:
-            cmd["cmd"] = command
-
-        if environment is not None:
-            cmd["env"] = environment
-
-        start = time.time()
-        # Send the package, then wait for the initial response.
-        bytes_sent = self.sock.send(json.dumps(cmd).encode())
-
-        # Read in the packet; initially we start with 16kb
-        bufsize = 2**16  # 64kb
-        response = self.sock.recv(bufsize)
-        try:
-            out = json.loads(response)
-        except Exception as e:
-            while True:
-                time.sleep(0.1)
+    @lru_cache(maxsize=5)
+    def open(self, imports: tuple):
+        # open the socket
+        sock = None
+        with Timer() as timer:
+            while sock is None and timer.elapsed < 10:
                 try:
-                    response += self.sock.recv(bufsize, socket.MSG_DONTWAIT)
-                except BlockingIOError as e:
-                    break
-        end = time.time()
+                    sock = socket.create_connection((self.host, self.port))
+                except Exception as e:
+                    time.sleep(0.5)
+            if sock is None:
+                raise Exception("Couldn't connect to the REPL; probably busted")
+
+        # initialize the headers
+        cmd = {"allTactics": True, "cmd": "\n".join(imports)}
+        response = self.interact(sock, cmd)
+        if response.get('error'):
+            raise Exception(response.get('error'))
+        return sock
+
+    def interact(self, sock: socket.socket, cmd: dict[str, Any]):
+        with Timer() as timer:
+            bytes_sent = sock.send(json.dumps(cmd).encode())
+
+            # Read in the packet; initially we start with 16kb
+            bufsize = 2**16  # 64kb
+            response = sock.recv(bufsize)
+            try:
+                out = json.loads(response)
+            except Exception as e:
+                while True:
+                    time.sleep(0.1)
+                    try:
+                        response += sock.recv(bufsize, socket.MSG_DONTWAIT)
+                    except BlockingIOError as e:
+                        break
+            time_taken = timer.elapsed
 
         # Read in the info & return
         try:
             out = json.loads(response)
-            out["time"] = end - start
-            self.env_id = out.get("env", None)
+            out["time"] = time_taken
             return out
         except json.JSONDecodeError as e:
             logging.error(f"Failed to decode response from REPL ({len(response)} bytes).")
-            out = {"time": end - start, "error": str(e)}
+            out = {"time": time_taken, "error": str(e)}
             return out
+
+
+    def query(
+        self, command: str, environment: int | None = None, timeout: int | None = None
+    ) -> dict:
+        header, theorem = parse_header(command)
+        key = make_header_key(header)
+        cmd: dict[str, Any] = {"allTactics": True, "cmd": theorem}
+        if timeout:
+            cmd["timeout"] = timeout
+
+        if environment is not None:
+            cmd["env"] = environment
+
+        sock = self.open(key)
+        return self.interact(sock, cmd)
