@@ -70,5 +70,5 @@ if __name__ == "__main__":
         repl_path=args.repl,
         project_path=args.repl,
         backport=args.backport,
-        imoprts=args.import,
+        imoprts=args.imports,
     )

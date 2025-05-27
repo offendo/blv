@@ -178,3 +178,4 @@ cython_debug/
 /.lake
 .DS_Store
 repl/
+benchmark.json
