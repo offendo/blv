@@ -1,7 +1,22 @@
-def verify(theorem_id, theorem, timeout, repl):
+def verify(theorem, timeout, repl):
+    """Verify a single theorem.
+
+    Arguments
+    ---------
+    theorem : str
+        The theorem to process. Should contain header & theorem content.
+    timeout : int
+        Maximum timeout.
+    repl : LeanRepl
+        LeanRepl object to interact with. This will be supplied automatically by the `rq.Worker`.
+    Returns
+    -------
+    dict
+        Dictionary containing the theorem ID and either the response dict or an `error` key.
+    """
     # Process the theorem
     try:
         response = repl.query(theorem, environment=0, timeout=timeout)
-        return {"theorem_id": theorem_id, **response}
+        return response
     except Exception as e:
-        return {"theorem_id": theorem_id, "error": str(e)}
+        return {"error": str(e)}

@@ -16,7 +16,7 @@ from rq.utils import now
 
 from blv.config import Config
 from blv.repl import LeanRepl
-from blv.utils import make_header_key, Timer
+from blv.utils import make_header_key, Timer, parse_header
 
 logging.basicConfig(level=logging.INFO)
 
@@ -37,13 +37,13 @@ class VerifierWorker(Worker):
         self.repl = LeanRepl(
             repl_path=repl_path, project_path=project_path, backport=backport
         )
-        self.repl.init_repl()
 
         # Import necessary items
         import_string = "\n".join(imports)
         log_string = import_string.replace("import ", "").replace("\n", "/")
         with Timer(f"imported {log_string}: " + "{}", logging.info):
-            out = self.repl.query(import_string)
+            header, theorem = parse_header(import_string)
+            out = self.repl.query(theorem, header)
 
     def execute_job(self, job: Job, queue: Queue):
         # Attach the REPL instance to the job

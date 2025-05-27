@@ -14,8 +14,10 @@ def parse_header(theorem: str):
             rest.append(line)
     return header, "\n".join(rest).strip()
 
-def make_header_key(header: list[str]):
-    return tuple(sorted(header))
+
+def make_header_key(header: list[str] | None) -> tuple:
+    return tuple(sorted(header)) if header else ()
+
 
 def remove_comments(formal_statement: str) -> str:
     block_pattern = r"/-.*? -/\n"
@@ -24,8 +26,11 @@ def remove_comments(formal_statement: str) -> str:
     no_blocks_or_inline = re.sub(inline_pattern, "", no_blocks, flags=re.DOTALL)
     return no_blocks_or_inline
 
+
 class Timer:
-    def __init__(self, msg_template: str | None = None, logger_func: Callable | None = None) -> None:
+    def __init__(
+        self, msg_template: str | None = None, logger_func: Callable | None = None
+    ) -> None:
         self.msg_template = msg_template or "{}"
         self.logger_func = logger_func or (lambda *x, **y: None)
 

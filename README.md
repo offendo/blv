@@ -1,8 +1,8 @@
 # blv - bulk lean verifier
 
-`blv` is a tool to verify large amounts of theorems in parallel. 
+`blv` is a tool to verify large amounts of theorems in parallel.
 
-It's faster than doing things one at a time, and faster than [kimina-lean-server](https://github.com/project-numina/kimina-lean-server). 
+It's faster than doing things one at a time, and faster than [kimina-lean-server](https://github.com/project-numina/kimina-lean-server).
 
 It's still a work in progress (see [TODO list](#todo-list)) -  `blv` doesn't support changing imports from theorem-to-theorem yet (i.e., every theorem must have the same imports)
 
@@ -12,7 +12,7 @@ It's still a work in progress (see [TODO list](#todo-list)) -  `blv` doesn't sup
 
 > [!NOTE]
 >
-> Only Lean versions `v4.15.0` and `v4.20.0-rc5` are supported right now, but if you would like to use another version of Lean, please submit an issue and I will help you out. Some older versions might be a bit finnicky, but hopefully new ones will be easy to add. 
+> Only Lean versions `v4.15.0` and `v4.20.0-rc5` are supported right now, but if you would like to use another version of Lean, please submit an issue and I will help you out. Some older versions might be a bit finnicky, but hopefully new ones will be easy to add.
 
 ### With Docker
 
@@ -67,7 +67,7 @@ redis-server > /dev/null 2>&1 &
 rq worker-pool -n $N_WORKERS -q --worker-class 'src.blv.worker.VerifierWorker'
 ```
 
-Then you can use `blv.verify.verify_theorems` to process theorems in bulk. 
+Then you can use `blv.verify.verify_theorems` to process theorems in bulk.
 
 > [!WARNING]
 >
@@ -89,8 +89,8 @@ redis = Redis(host="localhost", port=6379, db=0)
 # If you do have conflicting projects, just change the DB to something else!
 redis.flushdb()
 
-# Create input examples which have a theorem_id (could be anything) and the theorem.
-examples = [dict(theorem_id=row['theorem_id'], theorem=row['theorem']) for idx, row in df.iterrows()]
+# Create input examples
+examples = [row['theorem'] for idx, row in df.iterrows()]
 
 # This is the only user-facing function you need
 responses = verify_theorems(examples, connection=redis, timeout=30)
@@ -106,11 +106,11 @@ df.to_json('examples/example-verified.json')
 
 ### From Python
 
-You can use the `LeanRepl` object directly, which is fairly straightforward. This is basically just a thin wrapper around the Lean REPL, but it communicates via TCP which I think is slightly nicer than stdio, which caused a bunch of problems before. 
+You can use the `LeanRepl` object directly, which is fairly straightforward. This is basically just a thin wrapper around the Lean REPL, but it communicates via TCP which I think is slightly nicer than stdio, which caused a bunch of problems before.
 
 > [!TIP]
 >
-> There's no parallelization in this usage. If you have a small number of theorems to verify all using the same imports, this might suffice. For more than ~20 theorems, parallelization is pretty critical for speed, and there's really no downside to interacting via the worker queue. 
+> There's no parallelization in this usage. If you have a small number of theorems to verify all using the same imports, this might suffice. For more than ~20 theorems, parallelization is pretty critical for speed, and there's really no downside to interacting via the worker queue.
 
 ```python
 from blv import LeanRepl
@@ -118,31 +118,27 @@ from blv import LeanRepl
 repl_path = '/path/to/repl'  # Path to Lean REPL
 proj_path = '/path/to/proj'  # Path to a Lean project with mathlib/other deps
 
-# Use as context manager for one-off verifications. This can be slow if you do this in a loop since it'll start/stop the Lean REPL process on open/close, which means you'll have to reload any imports every single time.
-with LeanRepl(repl_path, proj_path) as repl:
-  	ex1 = "\n".join(["import Mathlib", "def f : Nat := 5", "#print f"])
-    r1 = repl.interact(ex1)
-    # Use the returned environment, which now contains Mathlib and `f`.
-    ex2 = "\n".join(["def g := f + 3","# print g"])
-    new_env = r1.get('env')
-    r2 = repl.interact(ex2, env=new_env) 
-
-    
-# You can also ignore the context manager. 
+# Initialize the `LeanRepl` object
 repl = LeanRepl(repl_path, proj_path)
-repl.open()
-response = repl.interact("def f : Nat := 5")
-repl.close()
+
+header = ["import Mathlib"]
+ex1 = "\n".join(["def f : Nat := 5", "#print f"])
+r1 = repl.query(ex1, header=header)
+
+# Use the returned environment which now contains `f`.
+ex2 = "\n".join(["def g := f + 3","#print g"])
+new_env = r1.get('env')
+r2 = repl.query(ex2, header=header, environment=new_env)
 ```
 
 ## Why use `blv`?
 
-* The most obvious reason is it's faster than the alternatives right now. 
-  * Also, I can't say this confidently, but it seems more stable than `kimina-lean-server` which caused a number of problems when I used it, including getting stuck, evicting workers which didn't need to be evicted, and overheating my laptop. Again, this might just have been me misusing it (and shame on me, I didn't submit an issue), so please don't take my word for it. 
-* It supports timeouts from the Lean side of things, which means we don't have to kill and restart a worker whenever it times out from the python side. 
+* The simplest reason is it's faster than the alternatives right now.
+  * Also, I can't say this confidently, but it seems more stable than `kimina-lean-server` which caused a number of problems when I used it, including getting stuck, evicting workers which didn't need to be evicted, and overheating my laptop. Again, this might just have been me misusing it (and shame on me, I didn't submit an issue), so please don't take my word for it.
+* It supports timeouts from the Lean side of things, which means we don't have to kill and restart a worker whenever it times out from the python side.
   * This is because I added this feature to my fork of Lean REPL.
-* It can easily scale by just cranking up `N_WORKERS`, so if you have a lot of theorems and a lot of machinery, go for it. 
-* The code is pretty darn simple, which makes it really easy to maintain. There are only 224 lines of python code as of writing this (measured using `cloc src/`). 
+* It can easily scale by just cranking up `N_WORKERS`, so if you have a lot of theorems and a lot of machinery, go for it.
+* The code is pretty darn simple, which makes it really easy to maintain. There are only 224 lines of python code as of writing this (measured using `cloc src/`).
 * More things to come.
 
 #### TODO list
@@ -163,10 +159,9 @@ Stolen from [kimina-lean-server](https://github.com/project-numina/kimina-lean-s
 >
 > I did my best to approximate their benchmark, but `kimina-lean-server` benchmarks *very slow* on my machine and I didn't want to unfairly showcase their project, so I just used their numbers.
 
-Running 60 workers on `Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz` for the first 1000 examples of the [Goedel Prover Lean Workbook Proofs](https://huggingface.co/datasets/Goedel-LM/Lean-workbook-proofs). 
+Running 60 workers on `Intel(R) Xeon(R) Gold 5220R CPU @ 2.20GHz` for the first 1000 examples of the [Goedel Prover Lean Workbook Proofs](https://huggingface.co/datasets/Goedel-LM/Lean-workbook-proofs).
 
 | System | Time Taken | Avg. Iterations / Second | # Processes |
 | ------ | ---------- | ------------------------ | ----------- |
 | Kimina | 03:51      | 4:33                     | 60          |
 | `blv`  | **03:03**  | **5.44**                 | 60          |
-

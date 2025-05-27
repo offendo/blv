@@ -7,7 +7,7 @@ import subprocess as sp
 import time
 from pathlib import Path
 from typing import Any
-from .utils import make_header_key, parse_header, Timer
+from .utils import make_header_key, Timer
 
 
 def get_random_port():
@@ -24,7 +24,11 @@ class LeanRepl:
     sock: socket.socket
 
     def __init__(
-        self, repl_path: str | Path, project_path: str | Path, backport: bool = False, host: str = "localhost"
+        self,
+        repl_path: str | Path,
+        project_path: str | Path,
+        backport: bool = False,
+        host: str = "localhost",
     ):
         self.repl_path = repl_path
         self.project_path = project_path
@@ -60,8 +64,8 @@ class LeanRepl:
         # initialize the headers
         cmd = {"allTactics": True, "cmd": "\n".join(imports)}
         response = self.interact(sock, cmd)
-        if response.get('error'):
-            raise Exception(response.get('error'))
+        if response.get("error"):
+            raise Exception(response.get("error"))
         return sock
 
     def interact(self, sock: socket.socket, cmd: dict[str, Any]):
@@ -88,22 +92,25 @@ class LeanRepl:
             out["time"] = time_taken
             return out
         except json.JSONDecodeError as e:
-            logging.error(f"Failed to decode response from REPL ({len(response)} bytes).")
+            logging.error(
+                f"Failed to decode response from REPL ({len(response)} bytes)."
+            )
             out = {"time": time_taken, "error": str(e)}
             return out
 
-
     def query(
-        self, command: str, environment: int | None = None, timeout: int | None = None
+        self,
+        theorem: str,
+        header: list[str] | None = None,
+        environment: int | None = None,
+        timeout: int | None = None,
     ) -> dict:
-        header, theorem = parse_header(command)
-        key = make_header_key(header)
         cmd: dict[str, Any] = {"allTactics": True, "cmd": theorem}
         if timeout:
             cmd["timeout"] = timeout
 
-        if environment is not None:
-            cmd["env"] = environment
-
+        key = make_header_key(header)
         sock = self.open(key)
+        cmd["env"] = environment if environment is not None else 0
+
         return self.interact(sock, cmd)
