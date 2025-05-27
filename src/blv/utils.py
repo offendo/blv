@@ -14,8 +14,8 @@ def parse_header(theorem: str):
             rest.append(line)
     return header, "\n".join(rest).strip()
 
-def make_header_key(header):
-    return tuple(sorted(header)) 
+def make_header_key(header: list[str]):
+    return tuple(sorted(header))
 
 def remove_comments(formal_statement: str) -> str:
     block_pattern = r"/-.*? -/\n"

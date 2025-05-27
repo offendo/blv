@@ -66,6 +66,7 @@ redis==6.0.0
     # via rq
 rq==2.3.2
     # via blv
+ruff==0.11.11
 six==1.17.0
     # via python-dateutil
 stack-data==0.6.3
