@@ -1,3 +1,5 @@
+from .utils import parse_header
+
 def verify(theorem, timeout, repl):
     """Verify a single theorem.
 
@@ -16,7 +18,8 @@ def verify(theorem, timeout, repl):
     """
     # Process the theorem
     try:
-        response = repl.query(theorem, environment=0, timeout=timeout)
+        header, theorem = parse_header(theorem)
+        response = repl.query(theorem, header=header, environment=0, timeout=timeout)
         return response
     except Exception as e:
         return {"error": str(e)}
