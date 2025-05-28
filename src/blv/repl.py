@@ -51,7 +51,7 @@ class LeanRepl:
             while sock is None and timer.elapsed < 10:
                 try:
                     sock = socket.create_connection((self.host, self.port))
-                except Exception as e:
+                except Exception:
                     time.sleep(0.5)
             if sock is None:
                 raise Exception("Couldn't connect to the REPL; probably busted")
@@ -65,19 +65,19 @@ class LeanRepl:
 
     def interact(self, sock: socket.socket, cmd: dict[str, Any]):
         with Timer() as timer:
-            bytes_sent = sock.send(json.dumps(cmd).encode())
+            sock.send(json.dumps(cmd, ensure_ascii=False).encode())
 
             # Read in the packet; initially we start with 16kb
             bufsize = 2**16  # 64kb
             response = sock.recv(bufsize)
             try:
                 out = json.loads(response)
-            except Exception as e:
+            except Exception:
                 while True:
                     time.sleep(0.1)
                     try:
                         response += sock.recv(bufsize, socket.MSG_DONTWAIT)
-                    except BlockingIOError as e:
+                    except BlockingIOError:
                         break
             time_taken = timer.elapsed
 
@@ -87,7 +87,9 @@ class LeanRepl:
             out["time"] = time_taken
             return out
         except json.JSONDecodeError as e:
-            logging.error(f"Failed to decode response from REPL ({len(response)} bytes).")
+            logging.error(
+                f"Failed to decode response from REPL ({len(response)} bytes)."
+            )
             out = {"time": time_taken, "error": str(e)}
             return out
 

@@ -1,7 +1,8 @@
 from .utils import parse_header
+from .repl import LeanRepl
 
 
-def verify(theorem, timeout, repl):
+def verify(theorem: str, timeout: int, repl: LeanRepl):
     """Verify a single theorem.
 
     Arguments
