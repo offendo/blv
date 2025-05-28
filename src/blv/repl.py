@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-from functools import lru_cache
 import json
 import logging
 import socket
 import subprocess as sp
 import time
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
-from .utils import make_header_key, Timer
+
+from .utils import Timer, make_header_key
 
 
 def get_random_port():
@@ -17,12 +18,6 @@ def get_random_port():
 
 
 class LeanRepl:
-    proc: sp.Popen[str] | None
-    env_id: int
-    repl_path: str | Path
-    project_path: str | Path
-    sock: socket.socket
-
     def __init__(
         self,
         repl_path: str | Path,
@@ -92,9 +87,7 @@ class LeanRepl:
             out["time"] = time_taken
             return out
         except json.JSONDecodeError as e:
-            logging.error(
-                f"Failed to decode response from REPL ({len(response)} bytes)."
-            )
+            logging.error(f"Failed to decode response from REPL ({len(response)} bytes).")
             out = {"time": time_taken, "error": str(e)}
             return out
 
