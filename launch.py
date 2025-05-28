@@ -9,6 +9,7 @@ import time
 import logging
 import rq
 from src.blv.verify import verify_theorems
+from src.blv.utils import remove_comments
 
 logging.basicConfig(level=logging.INFO)
 
@@ -61,11 +62,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     client = redis.Redis(host=args.host, port=args.port, db=args.db)
+    client.flushdb()
     queue = rq.Queue(connection=client)
 
     # Load the data in our very specific format
     df = pd.read_json(args.data)
-    df = df[: args.num_samples] if args.num_samples > 0 else df
+    df = df.iloc[: args.num_samples] if args.num_samples > 0 else df
     df = df.explode(
         [
             "formal_statement",
@@ -77,7 +79,7 @@ if __name__ == "__main__":
         ]
     ).reset_index(drop=True)
     # theorems = df.formal_statement.str.replace("import Mathlib", "").apply(lambda x: x.strip()[:4096])
-    theorems = df.formal_statement.apply(lambda x: x.strip()[:4096])
+    theorems = df.formal_statement.apply(lambda x: remove_comments(x.strip())[:4096])
 
     # Verify the theorems
     responses = verify_theorems(

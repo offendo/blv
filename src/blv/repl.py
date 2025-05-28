@@ -30,6 +30,7 @@ class LeanRepl:
         self.backport = backport
         self.port = get_random_port()
         self.host = host
+        self.logger = logging.getLogger(f"repl://{self.host}:{self.port}")
         self.init_repl()
 
     def init_repl(self):
@@ -42,6 +43,7 @@ class LeanRepl:
             cwd=self.project_path,
             universal_newlines=True,
         )
+        self.logger.info(f"Started REPL as subprocess: pid={self.proc.pid}")
 
     @lru_cache(maxsize=5)
     def open(self, imports: tuple):
@@ -87,7 +89,7 @@ class LeanRepl:
             out["time"] = time_taken
             return out
         except json.JSONDecodeError as e:
-            logging.error(
+            self.logger.error(
                 f"Failed to decode response from REPL ({len(response)} bytes)."
             )
             out = {"time": time_taken, "error": str(e)}
