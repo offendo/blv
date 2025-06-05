@@ -4,7 +4,9 @@
 
 It's faster than doing things one at a time, and faster than [kimina-lean-server](https://github.com/project-numina/kimina-lean-server).
 
-It's still a work in progress (see [TODO list](#todo-list)) -  `blv` doesn't support changing imports from theorem-to-theorem yet (i.e., every theorem must have the same imports)
+> [!WARNING]
+>
+> It's still a work in progress (see [TODO list](#todo-list)), and things probably won't work right out of the box. I'm working on it!
 
 ## Installation
 
@@ -12,11 +14,14 @@ It's still a work in progress (see [TODO list](#todo-list)) -  `blv` doesn't sup
 
 > [!NOTE]
 >
-> Only Lean versions `v4.15.0` and `v4.20.0-rc5` are supported right now, but if you would like to use another version of Lean, please submit an issue and I will help you out. Some older versions might be a bit finnicky, but hopefully new ones will be easy to add.
+> Only the following Lean versions are supported right now. If you would like to use another version of Lean, please submit an issue and I will help you out. Some older versions might be a bit finnicky, but hopefully new ones will be easy to add.
+> - `v4.15.0` 
+> - `v4.20.0-rc5` 
+> - `v4.18.0`
 
 ### With Docker
 
-The easiest way to install/use `blv` is with Docker.
+The easiest way to install/use `blv` is with Docker. These images are for Mac, but
 
 ```bash
 export LEAN_VERSION="<your project's lean version>"

@@ -63,6 +63,7 @@ class LeanRepl:
         response = self.interact(sock, cmd)
         if response.get("error"):
             raise Exception(response.get("error"))
+        self.logger.info(f"Opened new REPL at port {sock.getsockname()[1]} with imports: {imports} (response: {response})")
         return sock
 
     def interact(self, sock: socket.socket, cmd: dict[str, Any]):

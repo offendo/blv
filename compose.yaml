@@ -12,6 +12,6 @@ services:
     depends_on:
       - redis
     volumes:
-      - ${PROJECT_PATH}:/project
+      # - ${PROJECT_PATH}:/project
       - ./src/:/blv/src/
       - ./examples/:/blv/examples/
