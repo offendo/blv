@@ -4,7 +4,7 @@
 
 It's faster than doing things one at a time, and faster than [kimina-lean-server](https://github.com/project-numina/kimina-lean-server).
 
-> [!WARNING]
+> [!IMPORTANT]
 >
 > It's still a work in progress (see [TODO list](#todo-list)), and things probably won't work right out of the box. I'm working on it!
 
@@ -21,12 +21,28 @@ It's faster than doing things one at a time, and faster than [kimina-lean-server
 
 ### With Docker
 
-The easiest way to install/use `blv` is with Docker. These images are for Mac, but
+The easiest way to install/use `blv` is with Docker.
 
 ```bash
 export LEAN_VERSION="<your project's lean version>"
 docker pull ghcr.io/offendo/blv:$LEAN_VERSION
 ```
+
+> [!IMPORTANT]
+>
+> You might need to build your own image, since I haven't built/released images for `linux/amd64` yet. 
+>
+> ```bash
+> docker  build --platform linux/amd64 -t ghcr.io/offendo/blv:$LEAN_VERSION -f Dockerfile . --build-arg LEAN_VERSION=$LEAN_VERSION
+> ```
+
+If you don't want to go through the hassle of making your own mathlib 4 project and mounting it to `/project`, then you can build a Docker image with:
+
+```bash
+docker  build -t ghcr.io/offendo/blv:$LEAN_VERSION -f Dockerfile . --build-arg LEAN_VERSION=$LEAN_VERSION
+```
+
+which will install a project with Mathlib at `/project`. **Make sure if you're using this image to **
 
 ### Manual Installation
 

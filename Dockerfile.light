@@ -25,11 +25,5 @@ RUN curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -
     git clone --depth 1 --branch main https://github.com/offendo/blv.git; \
     (cd repl && lake build); \
     (cd blv && pip install --break-system-packages -r requirements.lock);
-RUN (cd / && \
-      lake new project math && \
-      cd project && \
-      curl https://raw.githubusercontent.com/leanprover-community/mathlib4/v4.18.0/lean-toolchain -o lean-toolchain && \
-      lake exe cache get \
-    );
 
 WORKDIR /blv

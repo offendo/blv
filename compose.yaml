@@ -12,6 +12,10 @@ services:
     depends_on:
       - redis
     volumes:
+      # ========================================================================
+      # If you're using a `-light` image, uncomment the following line and make
+      # sure the .env file is properly set up. Check `.env.template` for details
+      # ========================================================================
       # - ${PROJECT_PATH}:/project
       - ./src/:/blv/src/
       - ./examples/:/blv/examples/
