@@ -33,7 +33,6 @@ class VerifierWorker(SimpleWorker):
         with Timer(f"imported {log_string}: " + "{}", self.logger.info):
             header, theorem = parse_header(import_string)
             out = self.repl.query(theorem, header)
-            self.logger.info(f'repl returned initialization with : {out}')
 
     def execute_job(self, job: Job, queue: Queue):
         # Attach the REPL instance to the job

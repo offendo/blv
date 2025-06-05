@@ -83,10 +83,10 @@ Then you can use `blv.verify.verify_theorems` to process theorems in bulk.
 
 import pandas as pd
 from redis import Redis
-from src.blv.verify import verify_theorems
+from blv.verify import verify_theorems
 
 # Supposing you have a JSON file which has a field called 'theorem' you want to verify
-df = pd.read_json('examples/example-input-theorems.json')
+df = pd.read_json("examples/example-input-theorems.json")
 
 redis = Redis(host="localhost", port=6379, db=0)
 
@@ -94,19 +94,16 @@ redis = Redis(host="localhost", port=6379, db=0)
 # If you do have conflicting projects, just change the DB to something else!
 redis.flushdb()
 
-# Create input examples
-examples = [row['theorem'] for idx, row in df.iterrows()]
+# Now launch the jobs, wait for completion, and save to disk.
+examples: list[str] = [row["theorem"] for idx, row in df.iterrows()]  # type:ignore
+responses = verify_theorems(examples, timeout=30, flush_db_after=True)
 
-# This is the only user-facing function you need
-responses = verify_theorems(examples, connection=redis, timeout=30)
-
-# Format & save to disk
-df["response"] = [r['response'] for r in responses]
-df["verified"] = [r['verified'] for r in responses]
-df["errors"]   = [r['errors'] for r in responses]
+df["response"] = [r["response"] for r in responses]
+df["verified"] = [r["verified"] for r in responses]
+df["errors"] = [r["errors"] for r in responses]
 print(f"{sum(df.verified)}/{len(df)} valid theorems")
 
-df.to_json('examples/example-verified.json')
+df.to_json("examples/example-verified.json")
 ```
 
 ### From Python
@@ -127,11 +124,17 @@ proj_path = '/path/to/proj'  # Path to a Lean project with mathlib/other deps
 repl = LeanRepl(repl_path, proj_path)
 
 header = ["import Mathlib"]
-ex1 = "\n".join(["def f : Nat := 5", "#print f"])
+ex1 = """
+def f : Nat := 5
+#print f
+"""
 r1 = repl.query(ex1, header=header)
 
 # Use the returned environment which now contains `f`.
-ex2 = "\n".join(["def g := f + 3","#print g"])
+ex2 = """
+def g := f + 3
+#print g
+"""
 new_env = r1.get('env')
 r2 = repl.query(ex2, header=header, environment=new_env)
 ```
@@ -143,7 +146,7 @@ r2 = repl.query(ex2, header=header, environment=new_env)
 * It supports timeouts from the Lean side of things, which means we don't have to kill and restart a worker whenever it times out from the python side.
   * This is because I added this feature to my fork of Lean REPL.
 * It can easily scale by just cranking up `N_WORKERS`, so if you have a lot of theorems and a lot of machinery, go for it.
-* The code is pretty darn simple, which makes it really easy to maintain. There are only 224 lines of python code as of writing this (measured using `cloc src/`).
+* The code is pretty darn simple, which makes it really easy to maintain. There are only 244 lines of python code as of writing this (measured using `cloc src/`).
 * More things to come.
 
 #### TODO list
