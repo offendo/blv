@@ -36,7 +36,7 @@ class LeanRepl:
     def init_repl(self):
         path = str(Path(f"{self.repl_path}/.lake/build/bin/repl").absolute())
         self.proc = sp.Popen(
-            ["lake", "env", path, "--tcp", str(self.port)],
+            ["lake", "-R", "env", path, "--tcp", str(self.port)],
             stdin=sp.PIPE,
             stdout=sp.PIPE,
             stderr=sp.PIPE,
@@ -110,4 +110,7 @@ class LeanRepl:
         sock = self.open(key)
         cmd["env"] = environment if environment is not None else 0
 
-        return self.interact(sock, cmd)
+        if theorem:
+            return self.interact(sock, cmd)
+        else:
+            return {}
