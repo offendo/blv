@@ -28,8 +28,9 @@ RUN curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -
 RUN (cd / && \
       lake new project math && \
       cd project && \
-      curl https://raw.githubusercontent.com/leanprover-community/mathlib4/v4.18.0/lean-toolchain -o lean-toolchain && \
-      lake exe cache get \
+      curl https://raw.githubusercontent.com/leanprover-community/mathlib4/${LEAN_VERSION}/lean-toolchain -o lean-toolchain && \
+      sed -i "s/name = \"mathlib\"/name = \"mathlib\"\nversion = \"git#${LEAN_VERSION}\"/g" lakefile.toml && \
+      lake exe cache get && \
+      lake build \
     );
-
 WORKDIR /blv

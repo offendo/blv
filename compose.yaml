@@ -9,6 +9,9 @@ services:
       - path: .env
         required: true
     command: ["rq", "worker-pool", "-u", "redis://redis:6379", "-q", "-n", "${N_WORKERS}", "--worker-class", "src.blv.worker.VerifierWorker"]
+    build:
+      context: "."
+      dockerfile: "Dockerfile"
     depends_on:
       - redis
     volumes:
@@ -16,6 +19,6 @@ services:
       # If you're using a `-light` image, uncomment the following line and make
       # sure the .env file is properly set up. Check `.env.template` for details
       # ========================================================================
-      - ${PROJECT_PATH}:/project
+      # - ${PROJECT_PATH}:/project
       - ./src/:/blv/src/
       - ./examples/:/blv/examples/
