@@ -17,12 +17,12 @@ def benchmark_api(n):
     # Verify the proofs
     r = redis.Redis("localhost", port=6379, db=0)
     r.flushdb()
-    results = verify_theorems(samples, connection=r, timeout=60)
+    results = verify_theorems(samples, timeout=60)
 
     # Now do a little formatting then save it
     df = pd.DataFrame(
         {
-            "theorem": [s["theorem"] for s in samples],
+            "theorem": [s for s in samples],
             "response": results,
         }
     )
