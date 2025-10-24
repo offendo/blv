@@ -8,7 +8,7 @@ services:
     env_file:
       - path: .env
         required: true
-    command: ["rq", "worker-pool", "-u", "redis://redis:6379", "-q", "-n", "${N_WORKERS}", "--worker-class", "src.blv.worker.VerifierWorker"]
+    command: ["rq", "worker-pool", "-u", "redis://redis:6379/${REDIS_DB}", "-q", "-n", "${N_WORKERS}", "--worker-class", "src.blv.worker.VerifierWorker"]
     build:
       context: "."
       dockerfile: "Dockerfile"
