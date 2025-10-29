@@ -1,4 +1,4 @@
-name: Build and Push Multi-Platform Docker Image
+name: Build and Push Multiple Docker Images (Version Matrix)
 
 on:
   push:
@@ -9,6 +9,10 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        version: [v4.5.0, v4.7.0, v4.9.0]   # 🔧 Lean versions
+
     permissions:
       contents: read
       packages: write
@@ -17,7 +21,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up QEMU (for cross-platform builds)
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
@@ -30,12 +34,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push multi-platform image
+      - name: Extract BLV version (from Git tag)
+        id: vars
+        run: echo "BLV_VERSION=${GITHUB_REF##*/}" >> $GITHUB_ENV
+
+      - name: Build and push image for Lean ${{ matrix.version }}
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
+          build-args: |
+            LEAN_VERSION=${{ matrix.version }}
           tags: |
-            ghcr.io/offendo/blv:${{ github.ref_name }}
-            ghcr.io/offendo/blv:latest
+            ghcr.io/offendo/blv:${{ env.BLV_VERSION }}-${{ matrix.version }}
