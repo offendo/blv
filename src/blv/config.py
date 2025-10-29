@@ -6,4 +6,4 @@ class Config:
     repl_path: str = os.path.expanduser(os.environ.get("BLV_REPL_PATH", "/repl"))
     project_path: str = os.path.expanduser(os.environ.get("BLV_PROJECT_PATH", "/project"))
     backport: bool = False
-    imports: list[str] = ["import Mathlib", "import Aesop"]
+    imports: list[str] = os.environ.get("BLV_IMPORTS", "import Mathlib,import Aesop").split(",")

@@ -10,7 +10,15 @@ from blv.job import verify
 from blv.utils import check_response_for_error
 
 
-def verify_theorems(theorems: Sequence[str], timeout: int = 60, redis_host: str = "localhost", redis_port: int = 6379, redis_db: int = 0, flush_db_after: bool = False):
+def verify_theorems(
+    theorems: Sequence[str],
+    timeout: int = 60,
+    force_header: tuple[str, ...] | None = None,
+    redis_host: str = "localhost",
+    redis_port: int = 6379,
+    redis_db: int = 0,
+    flush_db_after: bool = False,
+):
     """Verify a list of theorems.
 
     Arguments
@@ -19,6 +27,9 @@ def verify_theorems(theorems: Sequence[str], timeout: int = 60, redis_host: str 
         List of theorms to verify. Each `theorem` should be a self-contained `.lean` file, with the imports & opens.
     timeout : int (default = 60)
         Maximum time to spend on each theorem before the REPL stops trying.
+    force_header : tuple[str, ...] | None = None
+        If provided, will ignore any imports in the input text and instead use
+        these. e.g., `("import Mathlib", "import Aesop")`.
     redis_host : str (default = "localhost")
         Redis host name where RQ workers are running.
     redis_port : int (default = 6379)
@@ -46,7 +57,7 @@ def verify_theorems(theorems: Sequence[str], timeout: int = 60, redis_host: str 
     prepared_jobs = [
         queue.prepare_data(
             verify,
-            kwargs={"theorem": thm, "timeout": timeout},
+            kwargs={"theorem": thm, "timeout": timeout, "force_header": force_header},
             timeout=None,
             result_ttl=-1,  # Keep the job forever
         )

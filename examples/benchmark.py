@@ -38,4 +38,4 @@ def benchmark_api(n):
 
 
 if __name__ == "__main__":
-    benchmark_api(100)
+    benchmark_api(1000)

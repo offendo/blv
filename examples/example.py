@@ -2,7 +2,7 @@
 
 import pandas as pd
 from redis import Redis
-from blv.verify import verify_theorems
+import blv
 
 # Supposing you have a JSON file which has a field called 'theorem' you want to verify
 df = pd.read_json("examples/example-input-theorems.json")
@@ -15,7 +15,7 @@ redis.flushdb()
 
 # Now launch the jobs, wait for completion, and save to disk.
 examples: list[str] = [row["theorem"] for idx, row in df.iterrows()]  # type:ignore
-responses = verify_theorems(examples, timeout=30, flush_db_after=True)
+responses = blv.verify_theorems(examples, timeout=30, flush_db_after=True)
 df["response"] = [r["response"] for r in responses]
 df["verified"] = [r["verified"] for r in responses]
 df["errors"] = [r["errors"] for r in responses]
