@@ -11,7 +11,7 @@ jobs:
 
     strategy:
       matrix:
-        version: [v4.5.0, v4.7.0, v4.9.0]   # 🔧 Lean versions
+        version: [v4.18.0, v4.19.0, v4.20.0, v4.21.0, v4.22.0, v4.23.0, v4.24.0]   # 🔧 Lean versions
 
     permissions:
       contents: read
