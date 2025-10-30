@@ -4,7 +4,7 @@ services:
     ports:
       - "6379:6379"
   blv:
-    image: "ghcr.io/offendo/blv:${LEAN_VERSION}"
+    image: "ghcr.io/offendo/blv:${BLV_VERSION}-${LEAN_VERSION}"
     env_file:
       - path: .env
         required: true
@@ -12,6 +12,8 @@ services:
     build:
       context: "."
       dockerfile: "Dockerfile"
+      args:
+        LEAN_VERSION: "${LEAN_VERSION}"
     depends_on:
       - redis
     volumes:
