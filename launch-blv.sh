@@ -68,17 +68,38 @@ fi
 
 # Set up .env file
 cat << EOF > .env
+# Docker/launch args
+# ==================
+
+# self-explanatory
+BLV_VERSION=0.2.2
+LEAN_VERSION=${LEAN_VERSION}
+
+# Path to Lean project on your machine (optional). Useful if you're processing
+# theorems with additional dependencies other than just mathlib.
+# **IMPORTANT:** If you set a PROJECT_PATH, make sure you also uncomment
+#                BLV_PROJECT_PATH, and mount PROJECT_PATH:BLV_PROJECT_PATH in
+#                the compose.yaml file 
+
+PROJECT_PATH=${PROJECT_PATH}
+# BLV_PROJECT_PATH=/project
+
+# Number of REPL instances to have at once. More is faster, but
+# will also consume more memory if you're loading big libraries like Mathlib.
+N_WORKERS=${N_WORKERS}
+            
+
+# Which Redis DB to launch workers on. 0 is default, but if you use Redis for
+# something else and you don't want the data from that DB to be flushed, you
+# can set this to something else. You should also then set redis_db=... in
+# blv.verify_theorems when you use it.
+REDIS_DB=${REDIS_DB}
+
 # self-explanatory
 LEAN_VERSION=${LEAN_VERSION}
 
-# Path to Lean project (optional if not using a '-light' image)
-PROJECT_PATH=${PROJECT_PATH}
-
-# Number of REPL instances to have at once. You should set this to the number of CPUs your machine has for the highest speed. 
-N_WORKERS=${N_WORKERS}
-
-# Which Redis DB to launch workers on
-REDIS_DB=${REDIS_DB}
+# You can customize the default imports for the workers, comma separated.
+BLV_IMPORTS="import Mathlib,import Aesop"
 EOF
 
 # Launch workers
