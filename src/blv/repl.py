@@ -11,16 +11,12 @@ from typing import Any
 
 from .utils import Timer, make_header_key, lru_cache
 
+logging.basicConfig(level=logging.DEBUG)
 
 def get_random_port():
     sock = socket.socket()
     sock.bind(("", 0))
     return sock.getsockname()[1]
-
-
-def close_repl(proc, sock):
-    sock.close()
-    return os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
 
 
 class LeanRepl:
@@ -37,6 +33,16 @@ class LeanRepl:
         self.host = host
         self.logger = logging.getLogger(f"repl://{self.host}")
 
+    def shutdown(self):
+        self.open_repl.cache_clear()
+        self.logger.info(f"Shutdown all REPLs")
+
+    @staticmethod
+    def close_repl(proc, sock):
+        sock.send("")
+        sock.close()
+        return os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+
     def open_socket(self, port: int):
         sock = None
         with Timer() as timer:
@@ -52,24 +58,26 @@ class LeanRepl:
     @lru_cache(
         maxsize=3,
         key_fn=lambda self, imports: make_header_key(imports),
-        del_fn=lambda key, proc: close_repl(proc[0], proc[1]),
+        del_fn=lambda key, proc: self.close_repl(proc[0], proc[1]),
     )
     def open_repl(self, imports: tuple[str, ...]):
         path = str(Path(f"{self.repl_path}/.lake/build/bin/repl").absolute())
         port = get_random_port()
+        fout = open(f'/tmp/repl-{port}.log', 'w')
+        ferr = open(f'/tmp/repl-{port}.err', 'w')
         proc = sp.Popen(
             ["lake", "-R", "env", path, "--tcp", str(port)],
             stdin=sp.PIPE,
-            stdout=sp.PIPE,
-            stderr=sp.PIPE,
+            stdout=fout,
+            stderr=ferr,
             cwd=self.project_path,
             universal_newlines=True,
-            preexec_fn=os.setsid,
+            # preexec_fn=os.setsid,
         )
-        self.logger.debug(f"Started REPL as subprocess: pid={proc.pid}")
 
         # Open connection to repl
         sock = self.open_socket(port)
+        self.logger.debug(f"Started REPL as subprocess: pid={proc.pid}")
 
         # Initialize the headers
         # keepEnv is true because we want to return the header.

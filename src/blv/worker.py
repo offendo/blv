@@ -19,22 +19,36 @@ class VerifierWorker(SimpleWorker):
         project_path: str = Config.project_path,
         backport: bool = Config.backport,
         imports: list[str] = Config.imports,
+        max_jobs: int | None = Config.max_jobs,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger(self.name)
 
-        # Boot the repl
-        self.repl = LeanRepl(repl_path=repl_path, project_path=project_path, backport=backport)
+        # Save attributes
+        self.repl_path = repl_path
+        self.project_path = project_path
+        self.backport = backport
+        self.max_jobs = max_jobs
+        self.imports = imports
 
-        # Import necessary items
-        import_string = "\n".join(imports)
-        log_string = import_string.replace("import ", "").replace("\n", "/")
-        with Timer(f"imported {log_string}: " + "{}", self.logger.info):
-            header, theorem = parse_header(import_string)
-            out = self.repl.query(theorem, header)
+        # Boot the repl
+        self.repl = self.spawn_repl()
+        self.completed_jobs = 0
+
+    def spawn_repl(self):
+        repl = LeanRepl(repl_path=self.repl_path, project_path=self.project_path, backport=self.backport)
+        repl.open_repl(self.imports)
+        return repl
 
     def execute_job(self, job: Job, queue: Queue):
+        # Restart the REPL if we're at the limit
+        if self.completed_jobs == self.max_jobs:
+            logging.info(f"Closing and relaunching repl after {self.max_jobs} jobs")
+            self.repl.shutdown()
+            self.repl = self.spawn_repl()
+            self.completed_jobs = 0
+
         # Attach the REPL instance to the job
         job.kwargs["repl"] = self.repl
         return super().execute_job(job, queue)
