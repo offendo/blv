@@ -1,6 +1,6 @@
 [project]
 name = "blv"
-version = "0.2.2"
+version = "0.2.3"
 description = "Simple wrapper for LeanREPL"
 authors = [
     { name = "Nilay Patel", email = "nilaypatel2@gmail.com" }

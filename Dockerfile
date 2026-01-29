@@ -1,6 +1,7 @@
 FROM buildpack-deps:bookworm-curl
 
 ARG LEAN_VERSION
+ARG BLV_VERSION
 
 ENV ELAN_HOME=/usr/local/elan \
     PATH=/usr/local/elan/bin:$PATH \
@@ -22,7 +23,7 @@ RUN curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -
     apt update -y; \
     apt install -y git lsb-release gcc redis python3 python3-pip; \
     git clone --depth 1 --branch ${LEAN_VERSION} https://github.com/offendo/repl.git; \
-    git clone --depth 1 --branch main https://github.com/offendo/blv.git; \
+    git clone --depth 1 --branch ${BLV_VERSION} https://github.com/offendo/blv.git; \
     (cd repl && lake update && lake build && lake exe cache get); \
     (cd blv && pip install --break-system-packages -r requirements.lock);
 # RUN (cd / && \

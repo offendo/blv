@@ -17,7 +17,8 @@ def verify_theorems(
     redis_host: str = "localhost",
     redis_port: int = 6379,
     redis_db: int = 0,
-    flush_db_after: bool = False,
+    flush_db_after: bool = True,
+    disable_tqdm: bool = False,
 ):
     """Verify a list of theorems.
 
@@ -36,11 +37,13 @@ def verify_theorems(
         Redis port where RQ workers are running.
     redis_db : str (default = 0)
         Redis DB where RQ workers are running.
-    flush_db_after : bool (default = False)
+    flush_db_after : bool (default = True)
         If True, flushes the redis database `db` after the function finishes
         proecessing. This is a good idea to enable since you'll need to flush
-        the results from Redis afterwards anyway, but by default it's off for
-        safety.
+        the results from Redis afterwards anyway, but can be disabled to keep
+        things in Redis.
+    disable_tqdm : bool (default = False)
+        Disable progress bar
 
     Returns
     -------
@@ -77,7 +80,7 @@ def verify_theorems(
     # Show progress bar of verified theorems
     logging.info("Started!")
     tik = time.time()
-    with tqdm(total=len(jobs), desc="Verifying") as pbar:
+    with tqdm(total=len(jobs), desc="Verifying", disable=disable_tqdm) as pbar:
         while (queue.finished_job_registry.count + queue.failed_job_registry.count) < len(theorems):  # type:ignore
             pbar.n = queue.finished_job_registry.count + queue.failed_job_registry.count
             pbar.set_postfix({"failed jobs": queue.failed_job_registry.count})
