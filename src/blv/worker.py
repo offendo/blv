@@ -8,9 +8,6 @@ from blv.config import Config
 from blv.repl import LeanRepl
 from blv.utils import Timer, parse_header
 
-logging.basicConfig(level=logging.INFO)
-
-
 class VerifierWorker(SimpleWorker):
     def __init__(
         self,
@@ -24,6 +21,7 @@ class VerifierWorker(SimpleWorker):
     ):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger(self.name)
+        self.logger.setLevel(logging.INFO)
 
         # Save attributes
         self.repl_path = repl_path
@@ -44,7 +42,7 @@ class VerifierWorker(SimpleWorker):
     def execute_job(self, job: Job, queue: Queue):
         # Restart the REPL if we're at the limit
         if self.completed_jobs == self.max_jobs:
-            logging.info(f"Closing and relaunching repl after {self.max_jobs} jobs")
+            self.logger.info(f"Closing and relaunching repl after {self.max_jobs} jobs")
             self.repl.shutdown()
             self.repl = self.spawn_repl()
             self.completed_jobs = 0

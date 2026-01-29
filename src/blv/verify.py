@@ -9,6 +9,8 @@ from tqdm import tqdm
 from blv.job import verify
 from blv.utils import check_response_for_error
 
+logger = logging.getLogger('blv')
+
 
 def verify_theorems(
     theorems: Sequence[str],
@@ -69,7 +71,7 @@ def verify_theorems(
     jobs = queue.enqueue_many(prepared_jobs)
 
     # Wait to start pbar until 1 at least is in the queue
-    logging.info("Waiting for workers...")
+    logger.info("Waiting for workers...")
     while (
         queue.started_job_registry.count == 0
         and queue.finished_job_registry.count != 0
@@ -78,7 +80,7 @@ def verify_theorems(
         time.sleep(0.1)
 
     # Show progress bar of verified theorems
-    logging.info("Started!")
+    logger.info("Started!")
     tik = time.time()
     with tqdm(total=len(jobs), desc="Verifying", disable=disable_tqdm) as pbar:
         while (queue.finished_job_registry.count + queue.failed_job_registry.count) < len(theorems):  # type:ignore
@@ -90,12 +92,12 @@ def verify_theorems(
         pbar.set_postfix({"failed jobs": queue.failed_job_registry.count})
         pbar.refresh()
     tok = time.time()
-    logging.info(f"Verified {len(theorems)} theorems in {tok - tik:0.3f}s")
+    logger.info(f"Verified {len(theorems)} theorems in {tok - tik:0.3f}s")
 
     responses = [j.return_value() for j in jobs]
     output = [{"response": r, **check_response_for_error(r)} for r in responses]
 
     if flush_db_after:
         r.flushdb()
-        logging.info(f"Flushed DB {redis_db}.")
+        logger.info(f"Flushed DB {redis_db}.")
     return output

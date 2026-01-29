@@ -11,8 +11,6 @@ from typing import Any
 
 from .utils import Timer, make_header_key, lru_cache
 
-logging.basicConfig(level=logging.DEBUG)
-
 def get_random_port():
     sock = socket.socket()
     sock.bind(("", 0))
@@ -32,6 +30,7 @@ class LeanRepl:
         self.backport = backport
         self.host = host
         self.logger = logging.getLogger(f"repl://{self.host}")
+        self.logger.setLevel(logging.INFO)
 
     def shutdown(self):
         self.open_repl.cache_clear()
