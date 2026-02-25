@@ -1,5 +1,5 @@
-from .utils import parse_header
 from .repl import LeanRepl
+from .utils import parse_header
 
 
 def verify(theorem: str, timeout: int, repl: LeanRepl, force_header: tuple[str, ...] | None = None):

@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-import os
 import json
 import logging
-import socket
+import os
 import signal
+import socket
 import subprocess as sp
 import time
 from pathlib import Path
 from typing import Any
 
-from .utils import Timer, make_header_key, lru_cache
+from .utils import Timer, lru_cache, make_header_key
+
 
 def get_random_port():
     sock = socket.socket()
@@ -62,8 +63,8 @@ class LeanRepl:
     def open_repl(self, imports: tuple[str, ...]):
         path = str(Path(f"{self.repl_path}/.lake/build/bin/repl").absolute())
         port = get_random_port()
-        fout = open(f'/tmp/repl-{port}.log', 'w')
-        ferr = open(f'/tmp/repl-{port}.err', 'w')
+        fout = open(f"/tmp/repl-{port}.log", "w")
+        ferr = open(f"/tmp/repl-{port}.err", "w")
         proc = sp.Popen(
             ["lake", "-R", "env", path, "--tcp", str(port)],
             stdin=sp.PIPE,
@@ -132,6 +133,10 @@ class LeanRepl:
         timeout: int | None = None,
         keep_env: bool = False,
     ) -> dict:
+
+        if len(theorem) == 0:
+            raise ValueError("Empty theorem supplied.")
+
         # keepEnv should be false by default because we don't want to store the env except the first time
         cmd: dict[str, Any] = {"allTactics": True, "cmd": theorem, "keepEnv": keep_env}
         if timeout:
@@ -141,7 +146,4 @@ class LeanRepl:
         proc, sock = self.open_repl(key)
         cmd["env"] = environment if environment is not None else 0
 
-        if theorem:
-            return self.interact(sock, cmd)
-        else:
-            return {}
+        return self.interact(sock, cmd)

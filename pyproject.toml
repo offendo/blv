@@ -1,6 +1,6 @@
 [project]
 name = "blv"
-version = "0.2.3"
+version = "0.2.4"
 description = "Simple wrapper for LeanREPL"
 authors = [
     { name = "Nilay Patel", email = "nilaypatel2@gmail.com" }
@@ -13,7 +13,7 @@ dependencies = [
     "tqdm>=4.67.1",
 ]
 readme = "README.md"
-requires-python = ">= 3.8"
+requires-python = ">= 3.10"
 
 [build-system]
 requires = ["hatchling"]
