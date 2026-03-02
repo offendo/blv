@@ -103,7 +103,7 @@ def verify_theorems(
 
             # Update progress bar
             completed = len(jobs) - len(remaining)
-            failed = sum(r["job_success"] if r is not None else 0 for r in results)
+            failed = sum((1 - r["job_success"]) if r is not None else 0 for r in results)
 
             pbar.n = completed
             pbar.set_postfix({"failed jobs": failed})

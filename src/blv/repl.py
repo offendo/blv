@@ -63,16 +63,15 @@ class LeanRepl:
     def open_repl(self, imports: tuple[str, ...]):
         path = str(Path(f"{self.repl_path}/.lake/build/bin/repl").absolute())
         port = get_random_port()
-        fout = open(f"/tmp/repl-{port}.log", "w")
-        ferr = open(f"/tmp/repl-{port}.err", "w")
+        # fout = open(f"/tmp/repl-{port}.log", "w")
+        # ferr = open(f"/tmp/repl-{port}.err", "w")
         proc = sp.Popen(
             ["lake", "-R", "env", path, "--tcp", str(port)],
-            stdin=sp.PIPE,
-            stdout=fout,
-            stderr=ferr,
+            # stdout=fout,
+            # stderr=ferr,
             cwd=self.project_path,
             universal_newlines=True,
-            # preexec_fn=os.setsid,
+            preexec_fn=os.setsid,
         )
 
         # Open connection to repl
