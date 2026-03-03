@@ -84,38 +84,3 @@ class Timer:
     def __exit__(self, *args, **kwargs):
         self.end = time.time()
         self.logger_func(self.msg_template.format(self.end - self.start))
-
-
-def _default_key(*args, **kwargs):
-    return (*args, *kwargs.values())
-
-
-def lru_cache(maxsize: int | None = None, key_fn: Callable = _default_key, del_fn: Callable | None = None):
-    def _decorator(fn):
-        cache = OrderedDict()
-        lru = {}
-
-        def _wrapped(*args, **kwargs):
-            # Construct the key as specified
-            key = key_fn(*args, **kwargs)
-
-            # Cache hit
-            if key in cache:
-                cache.move_to_end(key)
-                return cache[key]
-
-            # Cache miss
-            val = fn(*args, **kwargs)
-
-            # Evict if needed:
-            if len(cache) >= maxsize:
-                evicted_key, evicted_value = cache.popitem(last=False)
-                if del_fn is not None:
-                    del_fn(evicted_key, evicted_value)
-
-            cache[key] = val
-            return val
-
-        return _wrapped
-
-    return _decorator

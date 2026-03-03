@@ -7,15 +7,66 @@ import socket
 import subprocess as sp
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
+from collections import OrderedDict
 
-from .utils import Timer, lru_cache, make_header_key
+from .utils import Timer, make_header_key
 
+
+class BrokenReplError(Exception):
+    ...
 
 def get_random_port():
     sock = socket.socket()
     sock.bind(("", 0))
     return sock.getsockname()[1]
+
+def close_repl(proc, sock):
+    self.logger.info(f"Closing repl: pid={proc.pid}, sock={sock}")
+    sock.close()
+    return os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+
+def lru_cache(maxsize: int | None = None):
+    class Cache:
+        def __init__(self, maxsize: int | None = None):
+            self.maxsize = maxsize
+            self.cache = OrderedDict()
+            self.key_fn = lambda self, imports: make_header_key(imports)
+            self.del_fn = close_repl
+
+        def evict(self, *args, **kwargs):
+            # Construct the key as specified
+            key = self.key_fn(*args, **kwargs)
+            proc, sock = self.cache[key]
+            del self.cache[key]
+            self.del_fn(proc, sock)
+
+        def __call__(self, fn):
+            def _wrapped(*args, **kwargs):
+                # Construct the key as specified
+                key = self.key_fn(*args, **kwargs)
+
+                # Cache hit
+                if key in self.cache:
+                    self.cache.move_to_end(key)
+                    return self.cache[key]
+
+                # Cache miss
+                val = fn(*args, **kwargs)
+
+                # Evict if needed:
+                if len(self.cache) >= self.maxsize:
+                    evicted_key, (proc, sock) = self.cache.popitem(last=False)
+                    self.del_fn(proc, sock)
+
+                self.cache[key] = val
+                return val
+
+            # Expose evict/cache
+            _wrapped.evict = self.evict
+            _wrapped.cache = self.cache
+            return _wrapped
+    return Cache(maxsize=maxsize)
 
 
 class LeanRepl:
@@ -33,20 +84,10 @@ class LeanRepl:
         self.logger = logging.getLogger(f"repl://{self.host}")
         self.logger.setLevel(logging.INFO)
 
-    def shutdown(self):
-        self.open_repl.cache_clear()
-        self.logger.info(f"Shutdown all REPLs")
-
-    @staticmethod
-    def close_repl(proc, sock):
-        sock.send("")
-        sock.close()
-        return os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-
     def open_socket(self, port: int):
         sock = None
         with Timer() as timer:
-            while sock is None and timer.elapsed < 30:
+            while sock is None and timer.elapsed < 5:
                 try:
                     sock = socket.create_connection((self.host, port))
                 except Exception:
@@ -55,54 +96,19 @@ class LeanRepl:
                 raise Exception("Couldn't connect to the REPL; probably busted")
         return sock
 
-    @lru_cache(
-        maxsize=3,
-        key_fn=lambda self, imports: make_header_key(imports),
-        del_fn=lambda key, proc: self.close_repl(proc[0], proc[1]),
-    )
-    def open_repl(self, imports: tuple[str, ...]):
-        path = str(Path(f"{self.repl_path}/.lake/build/bin/repl").absolute())
-        port = get_random_port()
-        # fout = open(f"/tmp/repl-{port}.log", "w")
-        # ferr = open(f"/tmp/repl-{port}.err", "w")
-        proc = sp.Popen(
-            ["lake", "-R", "env", path, "--tcp", str(port)],
-            # stdout=fout,
-            # stderr=ferr,
-            cwd=self.project_path,
-            universal_newlines=True,
-            preexec_fn=os.setsid,
-        )
-
-        # Open connection to repl
-        sock = self.open_socket(port)
-        self.logger.debug(f"Started REPL as subprocess: pid={proc.pid}")
-
-        # Initialize the headers
-        # keepEnv is true because we want to return the header.
-        cmd = {"allTactics": True, "cmd": "\n".join(imports), "keepEnv": True}
-
-        # Talk to the repl to init the headers
-        response = self.interact(sock, cmd)
-
-        # Make sure things went ok
-        if response.get("error"):
-            raise Exception(response.get("error"))
-
-        self.logger.debug(
-            f"Opened new REPL at port {sock.getsockname()[1]} with imports: {imports} (response: {response})"
-        )
-
-        # Return both repl process and socket
-        return proc, sock
-
     def interact(self, sock: socket.socket, cmd: dict[str, Any]):
         with Timer() as timer:
-            sock.send(json.dumps(cmd, ensure_ascii=False).encode())
+            # This sometimes fails if the REPL dies. If we catch it here, we can retry
+            try:
+                sock.send(json.dumps(cmd, ensure_ascii=False).encode())
+                bufsize = 2**16  # 64kb
+                response = sock.recv(bufsize)
+            except Exception as e:
+                self.logger.error(f"Repl at port {sock.getsockname()[1]} broken.", exc_info=True)
+                raise BrokenReplError(f"Repl at port {sock.getsockname()[1]} broken.")
 
-            # Read in the packet; initially we start with 16kb
-            bufsize = 2**16  # 64kb
-            response = sock.recv(bufsize)
+            # This loop will ensure we get the ENTIRE response. Unless the
+            # server sends infinite data back, this loop will surely terminate.
             try:
                 out = json.loads(response)
             except Exception:
@@ -124,6 +130,40 @@ class LeanRepl:
             out = {"time": time_taken, "error": str(e)}
             return out
 
+
+    @lru_cache(maxsize=3)
+    def get_repl(self, imports: tuple[str, ...]):
+        path = str(Path(f"{self.repl_path}/.lake/build/bin/repl").absolute())
+        port = get_random_port()
+        proc = sp.Popen(
+            ["lake", "-R", "env", path, "--tcp", str(port)],
+            cwd=self.project_path,
+            universal_newlines=True,
+            # preexec_fn=os.setsid,
+        )
+
+        # Open connection to repl
+        sock = self.open_socket(port)
+        self.logger.info(f"Started REPL as subprocess: pid={proc.pid}")
+
+        # Initialize the headers
+        # keepEnv is true because we want to return the header.
+        cmd = {"allTactics": True, "cmd": "\n".join(imports), "keepEnv": True}
+
+        # Talk to the repl to init the headers
+        response = self.interact(sock, cmd)
+
+        # Make sure things went ok
+        if response.get("error"):
+            raise BrokenReplError(response.get("error"))
+
+        self.logger.info(
+            f"Opened new REPL at port {sock.getsockname()[1]} with imports: {imports} (response: {response})"
+        )
+
+        # Return both repl process and socket
+        return proc, sock
+
     def query(
         self,
         theorem: str,
@@ -142,7 +182,15 @@ class LeanRepl:
             cmd["timeout"] = timeout
 
         key = make_header_key(header)
-        proc, sock = self.open_repl(key)
         cmd["env"] = environment if environment is not None else 0
+        proc, sock = self.get_repl(key)
 
-        return self.interact(sock, cmd)
+        # Try, reboot repl if needed
+        for _ in range(3):
+            try:
+                return self.interact(sock, cmd)
+            except BrokenReplError as e:
+                self.get_repl.evict(key)
+                proc, sock = self.get_repl(key)
+
+        return {"error": "repl broken after 3 attempts; giving up"}
