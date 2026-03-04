@@ -36,7 +36,7 @@ class VerifierWorker(SimpleWorker):
 
     def spawn_repl(self):
         repl = LeanRepl(repl_path=self.repl_path, project_path=self.project_path, backport=self.backport)
-        repl.get_repl(self.imports)
+        repl.get_repl(imports=self.imports)
         return repl
 
     def execute_job(self, job: Job, queue: Queue):

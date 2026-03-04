@@ -27,24 +27,26 @@ def close_repl(proc, sock):
     return os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
 
 def lru_cache(maxsize: int | None = None):
-    class Cache:
-        def __init__(self, maxsize: int | None = None):
+    class ReplCache:
+        def __init__(self):
             self.maxsize = maxsize
             self.cache = OrderedDict()
-            self.key_fn = lambda self, imports: make_header_key(imports)
             self.del_fn = close_repl
 
-        def evict(self, *args, **kwargs):
+        @staticmethod
+        def key_fn(*, imports, **kwargs):
+            return make_header_key(imports)
+
+        def evict(self, key):
             # Construct the key as specified
-            key = self.key_fn(*args, **kwargs)
             proc, sock = self.cache[key]
             del self.cache[key]
             self.del_fn(proc, sock)
 
         def __call__(self, fn):
-            def _wrapped(*args, **kwargs):
+            def _wrapped(*args, imports, **kwargs):
                 # Construct the key as specified
-                key = self.key_fn(*args, **kwargs)
+                key = self.key_fn(imports=imports)
 
                 # Cache hit
                 if key in self.cache:
@@ -52,7 +54,7 @@ def lru_cache(maxsize: int | None = None):
                     return self.cache[key]
 
                 # Cache miss
-                val = fn(*args, **kwargs)
+                val = fn(*args, imports=imports, **kwargs)
 
                 # Evict if needed:
                 if len(self.cache) >= self.maxsize:
@@ -66,7 +68,7 @@ def lru_cache(maxsize: int | None = None):
             _wrapped.evict = self.evict
             _wrapped.cache = self.cache
             return _wrapped
-    return Cache(maxsize=maxsize)
+    return ReplCache()
 
 
 class LeanRepl:
@@ -132,7 +134,7 @@ class LeanRepl:
 
 
     @lru_cache(maxsize=3)
-    def get_repl(self, imports: tuple[str, ...]):
+    def get_repl(self, *, imports: tuple[str, ...]):
         path = str(Path(f"{self.repl_path}/.lake/build/bin/repl").absolute())
         port = get_random_port()
         proc = sp.Popen(
@@ -183,7 +185,7 @@ class LeanRepl:
 
         key = make_header_key(header)
         cmd["env"] = environment if environment is not None else 0
-        proc, sock = self.get_repl(key)
+        proc, sock = self.get_repl(imports=key)
 
         # Try, reboot repl if needed
         for _ in range(3):
@@ -191,6 +193,6 @@ class LeanRepl:
                 return self.interact(sock, cmd)
             except BrokenReplError as e:
                 self.get_repl.evict(key)
-                proc, sock = self.get_repl(key)
+                proc, sock = self.get_repl(imports=key)
 
         return {"error": "repl broken after 3 attempts; giving up"}
