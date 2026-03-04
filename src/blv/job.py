@@ -27,7 +27,7 @@ def verify(theorem: str, timeout: int, repl: LeanRepl, force_header: tuple[str, 
         header, theorem = parse_header(theorem)
         if force_header is not None:
             header = force_header
-        response = repl.query(theorem, header=header, environment=0, timeout=timeout)
+        response = repl.query(theorem, imports=header, environment=0, timeout=timeout)
         return response
     except Exception as e:
         return {"error": str(e)}
