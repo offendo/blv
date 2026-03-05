@@ -57,7 +57,8 @@ class LeanRepl:
                 except Exception:
                     time.sleep(0.5)
             if sock is None:
-                raise Exception("Couldn't connect to the REPL; probably busted")
+                self.logger.error(f"Unable to connect to REPL at port {port}")
+                raise BrokenReplError(f"Unable to connect to REPL at port {port}")
         return sock
 
     def interact(self, sock: socket.socket, cmd: dict[str, Any]):
@@ -103,6 +104,8 @@ class LeanRepl:
         # FIXME(nilay) include -R maybe if things break; I forget what this does
         proc = sp.Popen(
             ["lake", "env", path, "--tcp", str(port)],
+            stdout=sp.DEVNULL,
+            stderr=sp.DEVNULL,
             cwd=self.project_path,
             universal_newlines=True,
             # preexec_fn=os.setsid,
@@ -157,7 +160,7 @@ class LeanRepl:
     ) -> dict:
 
         if len(theorem) == 0:
-            raise ValueError("Empty theorem supplied.")
+            return {"error": "Empty theorem supplied."}
 
         # keepEnv should be false by default because we don't want to store the env except the first time
         cmd: dict[str, Any] = {"allTactics": True, "cmd": theorem, "keepEnv": keep_env}
@@ -165,13 +168,16 @@ class LeanRepl:
             cmd["timeout"] = timeout
 
         cmd["env"] = environment if environment is not None else 0
-        proc, sock = self.make_or_get_repl(imports=imports)
+        try:
+            proc, sock = self.make_or_get_repl(imports=imports)
+        except Exception as e:
+            return {"error": e}
 
         # Try, reboot repl if needed
         for _ in range(3):
             try:
                 return self.interact(sock, cmd)
-            except BrokenReplError as e:
+            except Exception as e:
                 self.evict_repl(imports=imports)
                 proc, sock = self.make_or_get_repl(imports=imports)
 

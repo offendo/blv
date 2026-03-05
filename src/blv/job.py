@@ -2,7 +2,7 @@ from .repl import LeanRepl
 from .utils import parse_header
 
 
-def verify_task(theorem: str, timeout: int, repl: LeanRepl | None = None, force_header: list[str] | None = None):
+def verify_task(theorem: str, timeout: int, repl: LeanRepl, force_header: list[str] | None = None):
     """Verify a single theorem.
 
     Arguments
@@ -26,9 +26,6 @@ def verify_task(theorem: str, timeout: int, repl: LeanRepl | None = None, force_
 
     if force_header is not None:
         header = force_header
-
-    if repl is None:
-        raise ValueError("no repl supplied to task; unable to complete")
 
     response = repl.query(theorem, imports=header, environment=0, timeout=timeout)
     return response

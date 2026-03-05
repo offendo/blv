@@ -61,8 +61,7 @@ def verify(
 
     with tqdm(total=len(jobs), desc="Verifying", disable=disable_tqdm and len(theorems) > 1) as pbar:
         while remaining:
-            finished_this_round = []
-            for idx in remaining:
+            for idx in list(remaining):
                 job = jobs[idx]
                 result = job.latest_result()
                 if result is not None:
@@ -71,16 +70,17 @@ def verify(
                         **check_response_for_error(result.return_value),
                         "job_success": job.get_status(refresh=True) == "finished",
                     }
-                    finished_this_round.append(idx)
+                    remaining.discard(idx)
                     # Update progress bar
                     completed += 1
                     # failure occured if we return none, or if we recognized a problem and caught it
-                    did_fail = (result.return_value is None) or (1 - result.return_value["job_success"])
+                    did_fail = (result.return_value is None) or (1 - results[idx]["job_success"])
                     failed += did_fail
 
                 pbar.n = completed
                 pbar.set_postfix({"failed jobs": failed})
                 pbar.refresh()
+
 
             if remaining:
                 time.sleep(0.1)
