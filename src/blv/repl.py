@@ -7,8 +7,8 @@ import socket
 import subprocess as sp
 import time
 from pathlib import Path
-from typing import Any, Callable
 from collections import OrderedDict
+from typing import Any
 
 from .utils import Timer, make_header_key
 
@@ -28,47 +28,6 @@ def get_random_port():
 def close_repl(*, proc, sock):
     sock.close()
     return os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-
-
-def lru_cache(maxsize: int | None = None):
-    class ReplCache:
-        def __init__(self):
-            self.maxsize = maxsize or 1e10
-            self.cache = OrderedDict()
-
-        def evict(self, key):
-            # Construct the key as specified
-            proc, sock = self.cache[key]
-            del self.cache[key]
-            close_repl(proc=proc, sock=sock)
-
-        def __call__(self, fn):
-            def _wrapped(*args, imports, **kwargs):
-                # Construct the key as specified
-                key = make_header_key(imports)
-
-                # Cache hit
-                if key in self.cache:
-                    self.cache.move_to_end(key)
-                    return self.cache[key]
-
-                # Cache miss
-                val = fn(*args, imports=imports, **kwargs)
-
-                # Evict if needed:
-                if len(self.cache) >= self.maxsize:
-                    evicted_key, (proc, sock) = self.cache.popitem(last=False)
-                    close_repl(proc=proc, sock=sock)
-
-                self.cache[key] = val
-                return val
-
-            # Expose evict/cache
-            _wrapped.evict = self.evict
-            _wrapped.cache = self.cache
-            return _wrapped
-
-    return ReplCache()
 
 
 class LeanRepl:
@@ -109,7 +68,6 @@ class LeanRepl:
                 bufsize = 2**20  # 1MB
                 response = sock.recv(bufsize)
                 while True:
-                    time.sleep(0.1)
                     try:
                         response += sock.recv(bufsize, socket.MSG_DONTWAIT)
                     except BlockingIOError:

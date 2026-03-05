@@ -6,7 +6,6 @@ from rq.job import Job
 
 from blv.config import Config
 from blv.repl import LeanRepl
-from blv.utils import Timer, parse_header
 
 
 class VerifierWorker(SimpleWorker):
@@ -43,4 +42,6 @@ class VerifierWorker(SimpleWorker):
     def execute_job(self, job: Job, queue: Queue):
         # Attach the REPL instance to the job
         job.kwargs["repl"] = self.repl
-        return super().execute_job(job, queue)
+        output = super().execute_job(job, queue)
+        self.completed_jobs += 1
+        return output

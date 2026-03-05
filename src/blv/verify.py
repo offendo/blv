@@ -1,42 +1,18 @@
 import logging
 import time
-from typing import Sequence
 
 import redis
 import rq
 from tqdm import tqdm
 
-from blv.job import verify
+from blv.job import verify_task
 from blv.utils import check_response_for_error
 
 logger = logging.getLogger("blv")
 
 
-def verify_single(
-    theorem: str,
-    timeout: int = 60,
-    force_header: tuple[str, ...] | None = None,
-    redis_host: str = "localhost",
-    redis_port: int = 6379,
-    redis_db: int = 0,
-):
-    r = redis.Redis(redis_host, redis_port, redis_db)
-    queue = rq.Queue(connection=r)
-    job = queue.enqueue_call(
-        verify,
-        kwargs={"theorem": theorem, "timeout": timeout, "force_header": force_header},
-        timeout=None,
-        result_ttl=60,
-    )
-    while job.get_status() not in {"finished", "stopped", "canceled", "failed"}:
-        time.sleep(0.1)
-
-    response = job.return_value()
-    return {"response": response, **check_response_for_error(response)}
-
-
-def verify_theorems(
-    theorems: Sequence[str],
+def verify(
+    theorems: str | list[str],
     timeout: int = 60,
     force_header: tuple[str, ...] | None = None,
     redis_host: str = "localhost",
@@ -49,15 +25,15 @@ def verify_theorems(
     r = redis.Redis(redis_host, redis_port, redis_db)
     queue = rq.Queue(connection=r)
 
-    if not isinstance(theorems, (list, tuple)):
-        raise ValueError("`theorems` needs to be a list of theorems")
-
     # Keep results long enough for us to fetch them
     RESULT_TTL = 60 * 5  # 5 minutes
 
+    if isinstance(theorems, str):
+        theorems = [theorems]
+
     prepared_jobs = [
         queue.prepare_data(
-            verify,
+            verify_task,
             kwargs={
                 "theorem": thm,
                 "timeout": timeout,
@@ -80,34 +56,31 @@ def verify_theorems(
     logger.info("Started!")
     tik = time.time()
 
-    with tqdm(total=len(jobs), desc="Verifying", disable=disable_tqdm) as pbar:
+    completed = 0
+    failed = 0
+
+    with tqdm(total=len(jobs), desc="Verifying", disable=disable_tqdm and len(theorems) > 1) as pbar:
         while remaining:
             finished_this_round = []
-
-            for idx in list(remaining):
+            for idx in remaining:
                 job = jobs[idx]
-                status = job.get_status(refresh=True)
-
-                if status in {"finished", "stopped", "canceled", "failed"}:
-                    response = job.return_value()
+                result = job.latest_result()
+                if result is not None:
                     results[idx] = {
-                        "response": response,
-                        **check_response_for_error(response),
-                        "job_success": status == "finished",
+                        "response": result.return_value,
+                        **check_response_for_error(result.return_value),
+                        "job_success": job.get_status(refresh=True) == "finished",
                     }
                     finished_this_round.append(idx)
+                    # Update progress bar
+                    completed += 1
+                    # failure occured if we return none, or if we recognized a problem and caught it
+                    did_fail = (result.return_value is None) or (1 - result.return_value["job_success"])
+                    failed += did_fail
 
-            # Remove completed jobs
-            for idx in finished_this_round:
-                remaining.discard(idx)
-
-            # Update progress bar
-            completed = len(jobs) - len(remaining)
-            failed = sum((1 - r["job_success"]) if r is not None else 0 for r in results)
-
-            pbar.n = completed
-            pbar.set_postfix({"failed jobs": failed})
-            pbar.refresh()
+                pbar.n = completed
+                pbar.set_postfix({"failed jobs": failed})
+                pbar.refresh()
 
             if remaining:
                 time.sleep(0.1)
