@@ -77,10 +77,9 @@ def verify(
                     did_fail = (result.return_value is None) or (1 - results[idx]["job_success"])
                     failed += did_fail
 
-                pbar.n = completed
-                pbar.set_postfix({"failed jobs": failed})
-                pbar.refresh()
-
+            pbar.n = completed
+            pbar.set_postfix({"failed jobs": failed})
+            pbar.refresh()
 
             if remaining:
                 time.sleep(0.1)
