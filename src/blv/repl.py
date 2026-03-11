@@ -62,24 +62,26 @@ class LeanRepl:
         return sock
 
     def interact(self, sock: socket.socket, cmd: dict[str, Any]):
-        with Timer() as timer:
-            # This sometimes fails if the REPL dies. If we catch it here, we can retry
-            try:
-                sock.send(json.dumps(cmd, ensure_ascii=False).encode())
-                bufsize = 2**20  # 1MB
+        try:
+            with Timer() as timer:
+                command_string = json.dumps(cmd, ensure_ascii=True).encode()
+                sock.send(command_string)
+                # Read in the packet; initially we start with 16kb
+                bufsize = 2**16  # 64kb
                 response = sock.recv(bufsize)
-                while True:
-                    try:
-                        response += sock.recv(bufsize, socket.MSG_DONTWAIT)
-                    except BlockingIOError:
-                        break
-            except Exception as e:
-                self.logger.error(f"Repl at port {sock.getsockname()[1]} broken: {e}", exc_info=True)
-                raise BrokenReplError(f"Repl at port {sock.getsockname()[1]} broken: {e}")
-
-            # This loop will ensure we get the ENTIRE response. Unless the
-            # server sends infinite data back, this loop will surely terminate.
-            time_taken = timer.elapsed
+                try:
+                    out = json.loads(response)
+                except Exception:
+                    while True:
+                        time.sleep(0.1)
+                        try:
+                            response += sock.recv(bufsize, socket.MSG_DONTWAIT)
+                        except BlockingIOError:
+                            break
+                time_taken = timer.elapsed
+        except Exception as e:
+            self.logger.error("Something happened while trying to send message back/forth to REPL: %s\n Caused by: %s", e, json.dumps(cmd, indent=2))
+            raise BrokenReplError(f"Something happened while trying to send message back/forth to REPL: {e}")
 
         # Read in the info & return
         try:
@@ -120,7 +122,11 @@ class LeanRepl:
         cmd = {"allTactics": True, "cmd": "\n".join(imports), "keepEnv": True}
 
         # Talk to the repl to init the headers
-        response = self.interact(sock, cmd)
+        try:
+            response = self.interact(sock, cmd)
+        except Exception as e:
+            close_repl(proc=proc, sock=sock)
+            raise e
 
         # Make sure things went ok
         if response.get("error"):

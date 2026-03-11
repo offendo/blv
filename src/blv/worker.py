@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 import logging
 
-from rq import Queue, SimpleWorker
+from rq import Queue, SimpleWorker, Worker
 from rq.job import Job
 
 from blv.config import Config
 from blv.repl import LeanRepl
 
 
-class VerifierWorker(SimpleWorker):
+class VerifierWorker(Worker):
     def __init__(
         self,
         *args,

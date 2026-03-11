@@ -19,6 +19,7 @@ def verify(
     redis_port: int = 6379,
     redis_db: int = 0,
     disable_tqdm: bool = False,
+    max_chars: int = 20_000,
 ):
     """Verify a list of theorems in a thread-safe way."""
 
@@ -35,11 +36,11 @@ def verify(
         queue.prepare_data(
             verify_task,
             kwargs={
-                "theorem": thm,
+                "theorem": thm[:max_chars],
                 "timeout": timeout,
                 "force_header": force_header,
             },
-            timeout=None,
+            timeout=180,
             result_ttl=RESULT_TTL,
         )
         for thm in theorems
@@ -60,6 +61,7 @@ def verify(
     failed = 0
 
     with tqdm(total=len(jobs), desc="Verifying", disable=disable_tqdm and len(theorems) > 1) as pbar:
+        loops = 0
         while remaining:
             for idx in list(remaining):
                 job = jobs[idx]
@@ -68,7 +70,7 @@ def verify(
                     results[idx] = {
                         "response": result.return_value,
                         **check_response_for_error(result.return_value),
-                        "job_success": job.get_status(refresh=True) == "finished",
+                        "job_success": result.status == "finished",
                     }
                     remaining.discard(idx)
                     # Update progress bar
@@ -77,9 +79,11 @@ def verify(
                     did_fail = (result.return_value is None) or (1 - results[idx]["job_success"])
                     failed += did_fail
 
-            pbar.n = completed
-            pbar.set_postfix({"failed jobs": failed})
-            pbar.refresh()
+                pbar.n = completed
+                if loops % 5 == 0:
+                    pbar.set_postfix({"failed jobs": failed, "loops": loops})
+                    pbar.refresh()
+                loops += 1
 
             if remaining:
                 time.sleep(0.1)
