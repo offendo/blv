@@ -70,7 +70,7 @@ def verify(
                     results[idx] = {
                         "response": result.return_value,
                         **check_response_for_error(result.return_value),
-                        "job_success": result.status == "finished",
+                        "job_success": result.type == result.Type.SUCCESSFUL,
                     }
                     remaining.discard(idx)
                     # Update progress bar
@@ -81,7 +81,7 @@ def verify(
 
                 pbar.n = completed
                 if loops % 5 == 0:
-                    pbar.set_postfix({"failed jobs": failed, "loops": loops})
+                    pbar.set_postfix({"failed jobs": failed})
                     pbar.refresh()
                 loops += 1
 
